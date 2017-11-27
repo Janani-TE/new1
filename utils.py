@@ -33,7 +33,7 @@ changers = None      # list of all output changing commits which are ancestors
                      # of the revision under test
 changefilter = {}
 vbv_tolerance = .05 # fraction of bitrate difference allowed (5%)
-feature_tolerance = .05 #fraction of feature bitrate difference allowed (5%)
+feature_tolerance = .10 #fraction of feature bitrate difference allowed (10%)
 abr_tolerance = .10 # fraction of abr difference allowed (10%)
 fps_tolerance = .10  # fraction of fps difference allowed (10%)
 logger = None
@@ -50,6 +50,12 @@ try:
     from conf import feature_type
 except ImportError, e:
     feature_type = 'none'	
+	
+try:
+    from conf import abr_check_x264, abr_check_x265
+except ImportError, e:
+    abr_check_x264 = {'none'}
+    abr_check_x265 = {'none'}	
 	
 try:
     from conf import feature, feature_value
@@ -1872,6 +1878,29 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
         logger.summaryfile(commit)
         return lastfname, None
 
+    abrchecklist = {'none'}
+    outputdiffCheck = False
+    checkfeature = False
+
+    if '--codec "x265"' in command:
+        abrchecklist = abr_check_x265
+    elif '--codec "x264"' in command:
+        abrchecklist = abr_check_x264
+    for feature in abrchecklist:
+        if feature in command:
+            outputdiffCheck = True
+            checkfeature = True
+
+    if checkfeature == False:
+        if (fps_check_variable and (fps_check_variable in command)):
+            outputdiffCheck = True		
+        if '--bitrate'	in command:
+            abrchecklist = {'--bitrate'}
+            checkfeature = True		
+            outputdiffCheck = True		
+        elif '--vbv-bufsize' in command:	
+            outputdiffCheck = True
+
     if filecmp.cmp(golden, test):
         # outputs matched last-known good, record no-change status for all
         # output changing commits which were not previously accounted for
@@ -1890,7 +1919,7 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
             open(fname, 'w').write(sum)
             return lastfname, False
 			
-    if '--vbv-bufsize' in command or '--bitrate' in command or (fps_check_variable and (fps_check_variable in command)):
+    if outputdiffCheck:
         # outputs did not match but this is a VBV test case.
         # bitrate difference > vbv tolerance will take credit for the change
         # or an open commmit with the 'vbv' keyword may take credit for the change
@@ -1906,39 +1935,43 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
             # 'bitrate: 121.95, SSIM: 20.747, PSNR: 53.359'
             diffmsg , diff_abr, diff_fps, diff_vbv, diff_feature = ' ', 0, 0, 0, 0
             try:
-                if '--vbv-bufsize' in command:
-                    lastbitrate = float(lastsum.split(',')[0].split(' ')[1])
-                    newbitrate = float(sum.split(',')[0].split(' ')[1])
-                    diff_vbv = abs(lastbitrate - newbitrate) / lastbitrate
-                    if diff_vbv > vbv_tolerance:
-                        diffmsg += 'VBV OUTPUT CHANGED BY %.2f%%' % (diff_vbv * 100)
-                elif (fps_check_variable and (fps_check_variable in command)):
-                    lastbitrate = float(lastsum.split(',')[0].split(' ')[1])
-                    newbitrate = float(sum.split(',')[0].split(' ')[1])
-                    diff_feature = abs(lastbitrate - newbitrate) / lastbitrate
-                    if diff_feature > feature_tolerance:
-                        diffmsg += '\nFEATURE BITRATE OUTPUT CHANGED BY %.2f%%' % (diff_feature * 100)
+                if checkfeature:
+                    for feature in abrchecklist:
+                        if feature in command:
+                            lastbitrate = float(lastsum.split('bitrate: ')[1].split(',')[0])
+                            newbitrate = float(sum.split(',')[0].split(' ')[1])
+                            diff_abr = abs(lastbitrate - newbitrate) / lastbitrate
+                            if diff_abr > abr_tolerance:
+                                diffmsg += 'OUTPUT CHANGED BY %.2f%%' % (diff_abr * 100)
+                            break
+                else:							
+                    if '--vbv-bufsize' in command:
+                        lastbitrate = float(lastsum.split(',')[0].split(' ')[1])
+                        newbitrate = float(sum.split(',')[0].split(' ')[1])
+                        diff_vbv = abs(lastbitrate - newbitrate) / lastbitrate
+                        if diff_vbv > vbv_tolerance:
+                            diffmsg += 'VBV OUTPUT CHANGED BY %.2f%%' % (diff_vbv * 100)
+                    elif (fps_check_variable and (fps_check_variable in command)):
+                        lastbitrate = float(lastsum.split(',')[0].split(' ')[1])
+                        newbitrate = float(sum.split(',')[0].split(' ')[1])
+                        diff_feature = abs(lastbitrate - newbitrate) / lastbitrate
+                        if diff_feature > feature_tolerance:
+                            diffmsg += '\nFEATURE BITRATE OUTPUT CHANGED BY %.2f%%' % (diff_feature * 100)
 
-                    targetfps_string = command.split(fps_check_variable)[1].split(' ')[0]
-                    targetfps = float(targetfps_string)
-                    for line in logs.splitlines():
-                        if check_variable and line.startswith(check_variable):
-                            frame_line = line
-                            framelevelfps_string = frame_line.split('frames:')[1].split(' fps')[0]
-                            framelevelfps = float(framelevelfps_string)
-                            diff_fps = abs(targetfps - framelevelfps) / targetfps
-                            frames_count_string = line.split(check_variable)[1].split(' frames:')[0]
-                            frame_count = float(frames_count_string)
-                            if frame_count > 100:
-                                if diff_fps > fps_tolerance:
-                                    diffmsg += ' \nFPS TARGET MISSED BY %.2f%% compared to target fps' % (diff_fps * 100)
-                                    diffmsg+= ' for FRAME = %s' %frames_count_string
-                elif '--bitrate' in command:
-                    lastbitrate = float(lastsum.split('bitrate: ')[1].split(',')[0])
-                    newbitrate = float(sum.split(',')[0].split(' ')[1])
-                    diff_abr = abs(lastbitrate - newbitrate) / lastbitrate
-                    if diff_abr > abr_tolerance:
-                        diffmsg += ' ABR OUTPUT CHANGED BY %.2f%%' % (diff_abr * 100)
+                        targetfps_string = command.split(fps_check_variable)[1].split(' ')[0]
+                        targetfps = float(targetfps_string)
+                        for line in logs.splitlines():
+                            if check_variable and line.startswith(check_variable):
+                                frame_line = line
+                                framelevelfps_string = frame_line.split('frames:')[1].split(' fps')[0]
+                                framelevelfps = float(framelevelfps_string)
+                                diff_fps = abs(targetfps - framelevelfps) / targetfps
+                                frames_count_string = line.split(check_variable)[1].split(' frames:')[0]
+                                frame_count = float(frames_count_string)
+                                if frame_count > 100:
+                                    if diff_fps > fps_tolerance:
+                                        diffmsg += ' \nFPS TARGET MISSED BY %.2f%% compared to target fps' % (diff_fps * 100)
+                                        diffmsg+= ' for FRAME = %s' %frames_count_string
 
             except (IndexError, ValueError), e:
                 diffmsg = 'Unable to parse bitrates for %s:\n<%s>\n<%s>' % \
@@ -2233,7 +2266,7 @@ def _test(build, tmpfolder, seq, command,  always, extras):
                 else:
                     newgoldenoutputs(seq, command, lastfname, sum, logs, tmpfolder, hash)
         elif errors:
-            typeoferror = 'VBV' if '--vbv-bufsize' in command else ('ABR' if '--bitrate' in command else '')
+            typeoferror = ''
             # outputs did not match golden outputs
             decodeerr = checkdecoder(tmpfolder, command)
             if decodeerr:
