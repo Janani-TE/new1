@@ -1894,7 +1894,7 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
     if checkfeature == False:
         if (fps_check_variable and (fps_check_variable in command)):
             outputdiffCheck = True		
-        if '--bitrate'	in command:
+        if '--bitrate'	in command and '--codec "x264"' in command:
             abrchecklist = {'--bitrate'}
             checkfeature = True		
             outputdiffCheck = True		
