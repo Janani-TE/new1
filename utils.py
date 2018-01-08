@@ -1898,7 +1898,7 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
             abrchecklist = {'--bitrate'}
             checkfeature = True		
             outputdiffCheck = True		
-        elif '--vbv-bufsize' in command:	
+        elif '--vbv-bufsize' in command and '--const-vbv' not in command:	
             outputdiffCheck = True
 
     if filecmp.cmp(golden, test):
