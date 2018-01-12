@@ -1649,6 +1649,16 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
 
     elif encoder_binary_name == 'x264' or '--codec "x264"' in command:
         cmds.extend(['--dump-yuv', 'x264-output.yuv'])
+    #Add csv option to all commandlines
+    cmds.extend(['--csv'])
+    if feature_type in command:	
+        csv_files, csv_file = '', ''
+        for hash  in testhashlist:
+            csv_files += 'csv_'+hash+'.csv,'
+        csv_file = csv_files[:-1]
+        cmds.extend([csv_file])
+    else:
+        cmds.extend(['csv_file.csv'])
     logs, errors, summary = '', '', ''
     if not os.path.isfile(x265):
         logger.write('x265 executable not found')
