@@ -16,6 +16,7 @@ feature_value = ''
 feature_type = ''  #Give feature in local conf.py file
 abr_check_x265 = {''} #Features need to be checked for abr deviation in x265 cli
 abr_check_x264 = {''} #Features need to be checked for abr deviation in x264 cli 
+install_path_exist = False #Set True if binary install path mentioned in build options
 
 # version control type, defaulting to hg
 version_control = 'hg'

@@ -68,6 +68,11 @@ except ImportError, e:
     encoder_library_name = 'libx265'
 if not os.path.exists(encoder_binary_name):
     os.mkdir(encoder_binary_name)
+	
+try:
+    from conf import install_path_exist
+except ImportError, e:
+    install_path_exist = False	
 
 try:
     from conf import version_control
@@ -556,9 +561,10 @@ def setup(argv, preferredlist):
         logger.write('No new golden outputs will be generated during this run, neither')
         logger.write('will it create pass/fail files.\n')
 
-    changers = findchangeancestors()
-    logger.logrevs(changers[0])
-    initspotchecks()
+    if encoder_binary_name != 'ffmpeg':
+        changers = findchangeancestors()
+        logger.logrevs(changers[0])
+        initspotchecks()
 
 
 ignored_x265_warnings = (
@@ -1318,11 +1324,23 @@ def gmake(buildfolder, generator, **opts):
                 os.chdir(my_x265_source)
                 os.system('make install')
                 os.chdir(cwdir)
+                for line in errors.splitlines(True):
+                    ffmpeg_errors = []
+                    if 'error:' in line:
+                        ffmpeg_errors.append(line.strip())
+                    if not ffmpeg_errors:
+                        return 0				
         return errors
     else:
         p = Popen(cmds, stdout=PIPE, stderr=PIPE, cwd=buildfolder)
     errors = async_poll_process(p, False)
     os.environ['PATH'] = origpath
+    if 'MinGW' in generator and install_path_exist == True:
+        cmds='mingw32-make install'
+        out, error = Popen(cmds, cwd=buildfolder, stdout=PIPE, stderr=PIPE, shell=True).communicate()	
+    elif install_path_exist == True:
+        cmds='make install'
+        out, error = Popen(cmds, cwd=buildfolder, stdout=PIPE, stderr=PIPE, shell=True).communicate()
     return errors
 
 
@@ -2138,11 +2156,11 @@ def savebadstream(tmpdir):
 
 def checkdecoder(tmpdir, command):
     global bitstream
-    decoder = my_jm_decoder if (encoder_binary_name == 'x264' or '--codec "x264"' in command) else my_hm_decoder
+    decoder = my_jm_decoder if (encoder_binary_name == 'x264' or '--codec "x264"' in command or 'codec=x264' in command) else my_hm_decoder
     if (encoder_binary_name == 'x264' or '--codec "x264"' in command) and feature_type in command:
         hash = bitstream[:-5]	 
         cmds = [decoder, '-i', bitstream, '-o', 'jm-output_'+hash+'.yuv']
-    elif encoder_binary_name == 'x264' or '--codec "x264"' in command:
+    elif encoder_binary_name == 'x264' or '--codec "x264"' in command or 'codec=x264' in command:
         cmds = [decoder, '-i', bitstream, '-o', 'jm-output.yuv']		
     else:
         cmds = [decoder, '-b', bitstream]
@@ -2225,7 +2243,7 @@ def _test(build, tmpfolder, seq, command,  always, extras):
     global bitstream, testhashlist
     empty = True
     testhash = testcasehash(seq, command)
-    bitstream = 'bitstream.h264' if (encoder_binary_name == 'x264' or '--codec "x264"' in command) else 'bitstream.hevc'
+    bitstream = 'bitstream.h264' if (encoder_binary_name == 'x264' or '--codec "x264"' in command or 'codec=x264' in command) else 'bitstream.hevc'
     testhashlist = []
     # run the encoder, abort early if any errors encountered
     logs, sum, encoder_errors, encoder_error_var = encodeharness(build, tmpfolder, seq, command,  always, extras)
@@ -2247,78 +2265,79 @@ def _test(build, tmpfolder, seq, command,  always, extras):
                 table('encoder warning', empty , empty, logger.build.strip('\n'))
             return
 
-        lastfname, errors = checkoutputs(build, seq, command, sum, tmpfolder, logs, hash)
-        fname = os.path.join(my_goldens, hash, lastfname, 'summary.txt')
+        if encoder_binary_name != 'ffmpeg':
+            lastfname, errors = checkoutputs(build, seq, command, sum, tmpfolder, logs, hash)
+            fname = os.path.join(my_goldens, hash, lastfname, 'summary.txt')
 
-        # check against last known good outputs - lastfname is the folder
-        # containing the last known good outputs (or for the new ones to be
-        # created)
+            # check against last known good outputs - lastfname is the folder
+            # containing the last known good outputs (or for the new ones to be
+            # created)
 
-        if errors is None or errors is False:
-            # no golden outputs for this test yet
-            logger.write('validating with decoder')
-            decodeerr = checkdecoder(tmpfolder, command)
-            if decodeerr:
-                hashfname = savebadstream(tmpfolder)
-                decodeerr += '\nThis bitstream was saved to %s' % hashfname
-                logger.testfail('Decoder validation failed', decodeerr, logs)
-                if os.path.exists(fname):
-                    lastsum = open(fname, 'r').read()
-                    table('Decoder validation failed', sum , lastsum, logger.build.strip('\n'))
-                else:
-                    table('Decoder validation failed', empty , empty, logger.build.strip('\n'))
-            else:
-                logger.write('Decoder validation ok:', sum)
-                if errors is False:
-                    # outputs matched golden outputs
-                    addpass(hash, lastfname, logs)
-                    logger.write('PASS')
-                else:
-                    newgoldenoutputs(seq, command, lastfname, sum, logs, tmpfolder, hash)
-        elif errors:
-            typeoferror = ''
-            # outputs did not match golden outputs
-            decodeerr = checkdecoder(tmpfolder, command)
-            if decodeerr:
-                prefix = '%s OUTPUT CHANGE WITH DECODE ERRORS' % typeoferror
-                hashfname = savebadstream(tmpfolder)
-                prefix += '\nThis bitstream was saved to %s' % hashfname
-                logger.testfail(prefix, errors + decodeerr, logs)
-                failuretype = '%s output change with decode errors ' % typeoferror
-                if os.path.exists(fname):
-                    lastsum = open(fname, 'r').read()
-                    table(failuretype, sum , lastsum, logger.build.strip('\n'))
-                else:
-                    table(failuretype, empty , empty, logger.build.strip('\n'))
-            else:
-                logger.write('FAIL')
-                if 'FPS TARGET MISSED' in errors:
+            if errors is None or errors is False:
+                # no golden outputs for this test yet
+                logger.write('validating with decoder')
+                decodeerr = checkdecoder(tmpfolder, command)
+                if decodeerr:
+                    hashfname = savebadstream(tmpfolder)
+                    decodeerr += '\nThis bitstream was saved to %s' % hashfname
+                    logger.testfail('Decoder validation failed', decodeerr, logs)
                     if os.path.exists(fname):
                         lastsum = open(fname, 'r').read()
-                        prefix = '%s FPS TARGET MISSED: <%s> to <%s>' % (typeoferror, lastsum, sum)
+                        table('Decoder validation failed', sum , lastsum, logger.build.strip('\n'))
                     else:
-                        prefix = '%s FPS TARGET MISSED:' % (typeoferror)
-                    failuretype = '%s fps target missed' % typeoferror
+                        table('Decoder validation failed', empty , empty, logger.build.strip('\n'))
                 else:
-                    if os.path.exists(fname):
-                        lastsum = open(fname, 'r').read()
-                        prefix = '%s OUTPUT CHANGE: <%s> to <%s>' % (typeoferror, lastsum, sum)
+                    logger.write('Decoder validation ok:', sum)
+                    if errors is False:
+                        # outputs matched golden outputs
+                        addpass(hash, lastfname, logs)
+                        logger.write('PASS')
                     else:
-                        prefix = '%s OUTPUT CHANGE:' % (typeoferror)
-                    failuretype = '%s output change' % typeoferror
-                if os.path.exists(fname):
-                    lastsum = open(fname, 'r').read()
-                    table(failuretype, sum , lastsum, logger.build.strip('\n'))
-                else:
-                    table(failuretype, empty , empty, logger.build.strip('\n'))
-                if save_changed:
+                        newgoldenoutputs(seq, command, lastfname, sum, logs, tmpfolder, hash)
+            elif errors:
+                typeoferror = ''
+                # outputs did not match golden outputs
+                decodeerr = checkdecoder(tmpfolder, command)
+                if decodeerr:
+                    prefix = '%s OUTPUT CHANGE WITH DECODE ERRORS' % typeoferror
                     hashfname = savebadstream(tmpfolder)
                     prefix += '\nThis bitstream was saved to %s' % hashfname
+                    logger.testfail(prefix, errors + decodeerr, logs)
+                    failuretype = '%s output change with decode errors ' % typeoferror
+                    if os.path.exists(fname):
+                        lastsum = open(fname, 'r').read()
+                        table(failuretype, sum , lastsum, logger.build.strip('\n'))
+                    else:
+                        table(failuretype, empty , empty, logger.build.strip('\n'))
                 else:
-                    badfn = os.path.join(tmpfolder, bitstream)
-                    prefix += '\nbitstream hash was %s' % hashbitstream(badfn)
-                addfail(hash, lastfname, logs, errors)
-                logger.testfail(prefix, errors, logs)
+                    logger.write('FAIL')
+                    if 'FPS TARGET MISSED' in errors:
+                        if os.path.exists(fname):
+                            lastsum = open(fname, 'r').read()
+                            prefix = '%s FPS TARGET MISSED: <%s> to <%s>' % (typeoferror, lastsum, sum)
+                        else:
+                            prefix = '%s FPS TARGET MISSED:' % (typeoferror)
+                        failuretype = '%s fps target missed' % typeoferror
+                    else:
+                        if os.path.exists(fname):
+                            lastsum = open(fname, 'r').read()
+                            prefix = '%s OUTPUT CHANGE: <%s> to <%s>' % (typeoferror, lastsum, sum)
+                        else:
+                            prefix = '%s OUTPUT CHANGE:' % (typeoferror)
+                        failuretype = '%s output change' % typeoferror
+                    if os.path.exists(fname):
+                        lastsum = open(fname, 'r').read()
+                        table(failuretype, sum , lastsum, logger.build.strip('\n'))
+                    else:
+                        table(failuretype, empty , empty, logger.build.strip('\n'))
+                    if save_changed:
+                        hashfname = savebadstream(tmpfolder)
+                        prefix += '\nThis bitstream was saved to %s' % hashfname
+                    else:
+                        badfn = os.path.join(tmpfolder, bitstream)
+                        prefix += '\nbitstream hash was %s' % hashbitstream(badfn)
+                    addfail(hash, lastfname, logs, errors)
+                    logger.testfail(prefix, errors, logs)
 
 def runtest(key, seq, commands, always, extras):
     '''
