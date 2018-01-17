@@ -1651,7 +1651,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
         cmds.extend(['--dump-yuv', 'x264-output.yuv'])
     #Add csv option to all commandlines
     cmds.extend(['--csv'])
-    if feature_type in command:	
+    if feature_type in command and feature_type != '':	
         csv_files, csv_file = '', ''
         for hash  in testhashlist:
             csv_files += 'csv_'+hash+'.csv,'
