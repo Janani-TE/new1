@@ -1847,11 +1847,11 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
     # Analysis save/load comparison once encoder success.If encoder crash exist it will not compare the output files.
     cwd = os.getcwd()
     if os.path.isfile(os.path.join(tmpdir,bitstream)):
-        if 'analysis-mode=save' in command:
+        if 'analysis-save' in command:
             savesummary = sum
             open('savesummary.txt', 'w').write(savesummary)
             shutil.copy(os.path.join(tmpdir,bitstream), cwd)
-        if 'analysis-mode=load' in command:
+        if 'analysis-load' in command:
             loadsummary = sum
             savesummary = open('savesummary.txt','r').read()
             save = os.path.join(cwd,bitstream)
