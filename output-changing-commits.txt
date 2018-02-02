@@ -18,7 +18,7 @@
 # 2) not required [sao], [weightp], [cutree] etc.., because these are
 # already set in presets so golden outputs will store for that preset.
 
-68b17aa887aa [pass 2, pass 3] rc: fix inconsistency in pass 2 when weightp and cutree are enabled.
+68b17aa887aa [pass 2,pass 3] rc: fix inconsistency in pass 2 when weightp and cutree are enabled.
 8b12db6c5f6b Disable opt-qp-pps and opt-ref-list-length-pps by default
 4b95f82c9fb1 [slices] Fix inconsistent output for slices
 667bbf65185e [slices] Fix VBV hanging issue for multiple threads - output for slices updated
