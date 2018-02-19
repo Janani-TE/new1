@@ -596,7 +596,8 @@ ignored_x265_warnings = (
     'interlaced (1) > level limit (0)',
     'Disabling pme and pmode: --pme and --pmode cannot be used with SEA motion search!',
     'multi-pass-opt-analysis/multi-pass-opt-distortion incompatible with pmode/pme, Disabling pmode/pme',
-    'Turning on repeat-headers for HDR compatibility'
+    'Turning on repeat-headers for HDR compatibility',
+    ' OPENCL not enabled in cmake - encode in default x265 without offload'	
 )
 
 
@@ -1820,13 +1821,18 @@ def parsex265(tmpfolder, stdout, stderr):
     lastprog = None
     ls = len(os.linesep) if not my_shellpath else 1# 2 on Windows, 1 on POSIX
     for line in stderr.splitlines(True):
+        warning_error_line = ''
+        if (encoder_binary_name == 'x265' or encoder_binary_name == 'x264'):
+            warning_error_line = line[16:-ls]
+        else:
+            warning_error_line = line[18:-ls]	
         if line.endswith('\r'):
             lastprog = line
         elif line.startswith('%s [debug]:' or '%s [full]:' % encoder_binary_name):
             lastprog = line
         elif line.startswith('%s [error]:' % encoder_binary_name) or \
              (line.startswith('%s [warning]:' % encoder_binary_name) and \
-              line[16:-ls] not in ignored_x265_warnings):		
+              warning_error_line not in ignored_x265_warnings):		
             if lastprog:
                 errors += lastprog.replace('\r', os.linesep)
                 lastprog = None
@@ -1835,7 +1841,7 @@ def parsex265(tmpfolder, stdout, stderr):
 	    if line.startswith('%s [error]:' % encoder_binary_name):
 		    encoder_error_var = True
         elif (line.startswith('%s [warning]:' % encoder_binary_name) and \
-              line[16:-ls] not in ignored_x265_warnings):
+              warning_error_line not in ignored_x265_warnings):
             encoder_error_var = False
 	
     return summary, errors, encoder_error_var
