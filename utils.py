@@ -49,7 +49,7 @@ except ImportError, e:
 try:
     from conf import feature_type
 except ImportError, e:
-    feature_type = 'none'	
+    feature_type = 'none'
 	
 try:
     from conf import abr_check_x264, abr_check_x265
@@ -73,7 +73,12 @@ try:
     from conf import install_path_exist
 except ImportError, e:
     install_path_exist = False	
-
+	
+try:
+    from conf import build_32bit
+except ImportError, e:
+    build_32bit = 'None'
+	
 try:
     from conf import version_control
 except ImportError, e:
@@ -292,6 +297,7 @@ class Logger():
         self.errors = 0
         self.testcount = 0
         self.totaltests = 0
+        self.commandcount = 0		
         self.newoutputs = {}
         self.logfp = open(os.path.join(encoder_binary_name, self.logfname), 'wb')
         self.header  = '\nsystem:      %s\n' % my_machine_name
@@ -306,7 +312,7 @@ class Logger():
         self.table.append(self.tableheader2)
         self.logfp.write(self.header + '\n')
         self.logfp.write('Running %s\n\n' % testfile)
-        self.logfp.flush()
+        self.logfp.flush() 
 
     def setbuild(self, key):
         '''configure current build info'''
@@ -367,6 +373,10 @@ class Logger():
         self.settitle(' '.join([nofn, seq, command]))
         print nofn,
 
+    def testcountlline(self, count):
+        self.commandcount = count
+        return self.commandcount		
+		
     def settestcount(self, count):
         self.totaltests = count
 
@@ -469,7 +479,7 @@ class Logger():
         finally:
             session.quit()
 
-def setup(argv, preferredlist):
+def setup(argv, preferredlist, preferredlist_32bit, separate_command_file):
     if not find_executable(version_control):
         raise Exception('Unable to find Mercurial executable %s' %version_control)
     if not find_executable('cmake'):
@@ -479,7 +489,7 @@ def setup(argv, preferredlist):
     if not os.path.exists(os.path.join(my_x265_source, 'CMakeLists.txt')) and not os.path.exists(os.path.join(my_x265_source, 'configure')):
         raise Exception('my_x265_source does not point to x265 source/ folder')
 
-    global run_make, run_bench, rebuild, save_results, test_file, skip_string
+    global run_make, run_bench, rebuild, save_results, test_file, test_file_32bit, skip_string
     global only_string, save_changed
 
     if my_tempfolder:
@@ -531,6 +541,16 @@ def setup(argv, preferredlist):
         test_file = listInRepo
     elif not os.path.exists(test_file):
         raise Exception('Unable to find test list file ' + test_file)
+	
+    if separate_command_file == True:	
+        test_file_32bit = preferredlist_32bit
+        listInRepo_32bit = os.path.join(my_x265_source, 'test', test_file_32bit)
+        if os.sep not in test_file_32bit and os.path.exists(listInRepo_32bit):
+            test_file_32bit = listInRepo_32bit
+        elif not os.path.exists(test_file_32bit):
+            raise Exception('Unable to find test list file ' + test_file_32bit)
+    else:
+        test_file_32bit = 'None'
 
     global buildObj
     for key in my_builds:
@@ -943,11 +963,21 @@ def parseY4MHeader(fname):
     return (width, height, fps, depth, csp)
 
 
-def parsetestfile():
-    global test_file, vbv_tolerance, feature_tolerance
+def parsetestfile(key, separate_command_file):
+    global test_file, test_file_32bit, vbv_tolerance, feature_tolerance
     missing = set()
     tests = []
-    for line in open(test_file).readlines():
+    file = ''
+	
+    if separate_command_file == True:
+        if key != build_32bit:
+            file = test_file
+        elif key == build_32bit:
+            file = test_file_32bit
+    else:
+        file = test_file	
+
+    for line in open(file).readlines():
         line = line.strip()
         if line.startswith('# vbv-tolerance ='):
             vbv_tolerance = float(line.split('=')[1])

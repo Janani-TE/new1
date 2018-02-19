@@ -12,7 +12,7 @@ from subprocess import Popen, PIPE
 import utils
 
 # setup will call sys.exit() if it determines the tests are unable to continue
-utils.setup(sys.argv, 'regression-tests.txt')
+utils.setup(sys.argv, 'regression-tests.txt', '', False)
 
 from conf import my_builds, my_machine_name, my_sequences, my_x265_source
 from utils import logger, find_executable
@@ -57,11 +57,16 @@ hasffplay = find_executable('ffplay')
 
 try:
 
-    tests = utils.parsetestfile()
-    logger.settestcount(len(my_builds.keys()) * len(tests))
+    cumulative_count = 0
+    for key in my_builds:
+        tests = utils.parsetestfile(key, False)
+        cumulative_count += logger.testcountlline(len(tests))	
+		
+    logger.settestcount(cumulative_count)
 
     for build in my_builds:
         logger.setbuild(build)
+        tests = utils.parsetestfile(key, False)
         for seq, command in tests:
             if '--codec "x264"' in command:
                 alwaysforx264 = ''

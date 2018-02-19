@@ -11,8 +11,14 @@ import shutil
 from subprocess import Popen, PIPE
 import utils
 
+try:
+    from conf import separate_command_file
+except ImportError, e:
+    separate_command_file = False
+
 # setup will call sys.exit() if it determines the tests are unable to continue
-utils.setup(sys.argv, 'smoke-tests.txt')
+utils.setup(sys.argv, 'smoke-tests.txt', 'smoke-tests-32bit.txt', separate_command_file)
+
 from conf import my_builds, my_sequences, my_x265_source
 from utils import logger
 
@@ -47,6 +53,7 @@ except ImportError, e:
     print 'failed to import my_receiver_mailid'
     my_receiver_mailid = my_email_to
 
+
 utils.buildall()
 if logger.errors:
     # send results to mail
@@ -67,19 +74,23 @@ if encoder_binary_name == 'ffmpeg':
     extras = []
 
 try:
-
-    tests = utils.parsetestfile()
-    logger.settestcount(len(my_builds.keys()) * len(tests))
+    cumulative_count = 0
+    for key in my_builds:
+        tests = utils.parsetestfile(key, separate_command_file)
+        cumulative_count += logger.testcountlline(len(tests))	
+		
+    logger.settestcount(cumulative_count)
 
     for key in my_builds:
         logger.setbuild(key)
+        tests = utils.parsetestfile(key, separate_command_file)
         for (seq, command) in tests:
             if '--codec "x264"' in command:
                 alwaysforx264 = '--frames 100'
                 utils.runtest(key, seq, command, alwaysforx264, extras)
             else:
-                utils.runtest(key, seq, command, always, extras)
-
+                utils.runtest(key, seq, command, always, extras)          		
+	
     # send results to mail
     logger.email_results()
 
@@ -92,7 +103,7 @@ try:
              fatalerror = True
 
     if fatalerror == False and my_upload:
-        utils.setup(sys.argv, 'smoke-tests.txt')
+        utils.setup(sys.argv, 'smoke-tests.txt', 'smoke-tests-32bit.txt', separate_command_file)
         from utils import logger
         for key, v in my_upload.iteritems():
             buildoption = []
@@ -109,7 +120,7 @@ try:
         # here it applies specific patch and shares libraries
         if csv_feature == True:
             out, err = Popen(['hg', 'import', my_patchlocation], cwd=my_x265_source, stdout=PIPE, stderr=PIPE).communicate()
-            utils.setup(sys.argv, 'smoke-tests.txt')
+            utils.setup(sys.argv, 'smoke-tests.txt', 'smoke-tests-32bit.txt', separate_command_file)
             from utils import logger
             my_patchrevision = utils.hgversion(my_x265_source)
             testedbranch = utils.hggetbranch(my_patchrevision)
