@@ -185,6 +185,11 @@ try:
 except ImportError, e:
     my_branch_binary = False
 
+try:
+    from conf import valgrind_check
+except ImportError, e:
+    valgrind_check = False
+    
 osname = platform.system()
 if osname == 'Windows':
     exe_ext         = '.exe'
@@ -1649,7 +1654,12 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
     seqfullpath = os.path.join(my_sequences, sequence)
     build = buildObj[key]
     x265 = build.exe
-    cmds = [x265]
+
+    if osname == 'Linux' and valgrind_check:
+        cmds = ['valgrind', '--error-exitcode=5', '--tool=memcheck', '--leak-check=full', x265]
+    else:
+        cmds = [x265]
+
     import glob
     files = glob.iglob(os.path.join(os.path.join(my_x265_source,'test'), "*.json"))
     for file in files:
@@ -1766,6 +1776,8 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
             errors += 'unable open generate stream headers (ret 3)\n\n'
         elif p.returncode == 4:
             errors += 'encoder abort (ret 4)\n\n'
+        elif p.returncode == 5:
+            errors += 'valgrind error reported (ret 5) \n\n'
         elif p.returncode:
             errors += 'x265 return code %d\n\n' % p.returncode
 

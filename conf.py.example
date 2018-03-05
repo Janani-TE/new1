@@ -61,6 +61,9 @@ check_binary = ''
 check_variable = ''
 fps_check_variable = ''
 
+#Run valgrind memcheck
+valgrind_check = False
+
 # change to True if you want all output-change bitstreams to be saved
 # for later review. If False, you can still enable this on an individual
 # run by adding --save-changed to the command line
