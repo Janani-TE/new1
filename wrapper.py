@@ -42,6 +42,7 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
     while k<numStrm:
         #cmd = cmd_string.split('[')[1].split(']')[0]
         cmd = cmd_string.split('}')[0].split('{')[1];
+        cmd_stream = cmd
         cmd = cmd.replace('[ ', '')
         cmd = cmd.replace(' ]', '')
         cmd = cmd.replace(' ;', '')
@@ -51,32 +52,32 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
         k=k+1     
         bitrates, vbvmaxrates, vbvbufsizes, crf, crfmax, crfmin = [], [], [], [], [], []
         tchash = []
-        if '--vbv-bufsize ' in cmd:
-            list = cmd.split('--vbv-bufsize ')[1].split(' ')[0]
+        if '--vbv-bufsize ' in cmd_stream:
+            list = cmd_stream.split('--vbv-bufsize ')[1].split(' ')[0]
             for l in list.split (','):
                 vbvbufsizes.append(l)
             cmd = cmd.replace('--vbv-bufsize ', '')
             cmd = cmd.replace(list, '')
-        if '--vbv-maxrate ' in cmd:
-            list = cmd.split('--vbv-maxrate ')[1].split(' ')[0]
+        if '--vbv-maxrate ' in cmd_stream:
+            list = cmd_stream.split('--vbv-maxrate ')[1].split(' ')[0]
             for l in list.split (','):
                 vbvmaxrates.append(l)
             cmd = cmd.replace('--vbv-maxrate ', '')
             cmd = cmd.replace(list, '')
-        if '--crf-max' in cmd:
-            list =  cmd.split('--crf-max ')[1].split(' ')[0]
+        if '--crf-max' in cmd_stream:
+            list =  cmd_stream.split('--crf-max ')[1].split(' ')[0]
             for l in list.split (','):
                 crfmax.append(l)
             cmd = cmd.replace('--crf-max ', '')
             cmd = cmd.replace(list, '')
-        if '--crf-min' in cmd:
-            list =  cmd.split('--crf-min ')[1].split(' ')[0]
+        if '--crf-min' in cmd_stream:
+            list =  cmd_stream.split('--crf-min ')[1].split(' ')[0]
             for l in list.split (','):
                 crfmin.append(l)
             cmd = cmd.replace('--crf-min ', '')
             cmd = cmd.replace(list, '')
-        if '--bitrate' in cmd:
-            list = cmd.split('--bitrate ')[1].split(' ')[0]
+        if '--bitrate' in cmd_stream:
+            list = cmd_stream.split('--bitrate ')[1].split(' ')[0]
             for l in list.split (','):
                 bitrates.append(l)
             cmd = cmd.replace('--bitrate ', '')
@@ -100,8 +101,8 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
                 testhash = utils.testcasehash(seq, command)
                 tchash.append(testhash)
                 utils.testhashlist.append(testhash)
-        if '--crf' in cmd:
-            list = cmd.split('--crf ')[1].split(' ')[0]
+        if '--crf' in cmd_stream:
+            list = cmd_stream.split('--crf ')[1].split(' ')[0]
             for l in list.split (','):
                 crf.append(l)
             cmd = cmd.replace('--crf ', '')
@@ -161,7 +162,7 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
                 recon_filenames += '.yuv,'
             recon_filenames = recon_filenames[:-1]
             final_command += ' --recon='
-            final_command += recon_filenames        
+            final_command += recon_filenames
     return final_command
 
 def arrangecli(seq, command, always, extras, ffmpegpath, build):
