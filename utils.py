@@ -1703,15 +1703,15 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
         cmds.extend(shlex.split(command))
         cmds.extend(extras)
         cmds.extend(seq_details)
-    if (encoder_binary_name == 'x264' or '--codec "x264"' in command) and feature_type in command :
+    if (encoder_binary_name == 'x264' or '--codec "x264"' in command) and (feature_type in command and 'split' not in command):
         cmds.extend(['--dump-yuv'])
         yuv_files, yuv_file = '', ''
         for hash  in testhashlist:
             yuv_files += 'x264-output_'+hash+'.yuv,'
         yuv_file = yuv_files[:-1]
         cmds.extend([yuv_file])
-
-    elif encoder_binary_name == 'x264' or '--codec "x264"' in command:
+        
+    elif (encoder_binary_name == 'x264' or '--codec "x264"' in command) and 'split' not in command:
         cmds.extend(['--dump-yuv', 'x264-output.yuv'])
     #Add csv option to all commandlines
     if 'split' not in command and encoder_binary_name != 'ffmpeg':
@@ -1723,7 +1723,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
             csv_file = csv_files[:-1]
             cmds.extend([csv_file])
         else:
-            cmds.extend(['csv_file.csv'])  
+            cmds.extend(['csv_file.csv']) 
     logs, errors, summary = '', '', ''
     if not os.path.isfile(x265):
         logger.write('x265 executable not found')

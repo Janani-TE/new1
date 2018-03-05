@@ -132,7 +132,7 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
                 utils.testhashlist.append(testhash)
                 final_command += command    
         final_command += ' -o '
-        if encoder_binary_name == 'x264' or '--codec "x264"' in command:
+        if encoder_binary_name == 'x264' or '--codec "x264"' in final_command:
             final_command += '.h264,'.join(tchash)
             final_command += '.h264'	
         else:
@@ -145,7 +145,15 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
             csv_filenames += '.csv,'
         csv_filenames = csv_filenames[:-1]
         final_command += ' --csv '
-        final_command += csv_filenames            
+        final_command += csv_filenames  
+
+        if '--codec "x264"' in final_command:
+            yuv_filenames = ''
+            for i in tchash:
+                yuv_filenames += 'x264-output_'+ i +'.yuv,'
+            yuv_filenames = yuv_filenames[:-1]
+            final_command += ' --dump-yuv '
+            final_command += yuv_filenames          
 
         if '--recon=recon.y4m' in extras:
             recon_filenames = ''
