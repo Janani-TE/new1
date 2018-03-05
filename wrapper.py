@@ -129,8 +129,8 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
                 command += ' '
                 commandslist.append(command)
                 testhash = utils.testcasehash(seq, command)
+                tchash.append(testhash)
                 utils.testhashlist.append(testhash)
-                final_command += command    
         final_command += ' -o '
         if encoder_binary_name == 'x264' or '--codec "x264"' in final_command:
             final_command += '.h264,'.join(tchash)
