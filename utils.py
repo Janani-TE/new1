@@ -1656,11 +1656,16 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
         if os.path.isfile(file):
             shutil.copy2(file, os.path.abspath(tmpfolder))
 
-    if '[' in command:
-        command = wrapper.arrangecli(seqfullpath, command, always, extras, None, None)
+    if '{' in command:
+        command = wrapper.arrangecli_MC(seqfullpath, command, always, extras, None, None)
         cmds.append(seqfullpath)
         cmds.extend(shlex.split(command))
         cmds.extend(seq_details)
+    elif '[' in command:
+        command = wrapper.arrangecli(seqfullpath, command, always, extras, None, None)
+        cmds.append(seqfullpath)
+        cmds.extend(shlex.split(command))
+        cmds.extend(seq_details)		
     elif '(' in command:
         command1 = command.split('(')[0]
         command1 += command.split('(')[1].split(')')[0]
@@ -1699,7 +1704,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
     elif encoder_binary_name == 'x264' or '--codec "x264"' in command:
         cmds.extend(['--dump-yuv', 'x264-output.yuv'])
     #Add csv option to all commandlines
-    if encoder_binary_name != 'ffmpeg':
+    if 'split' not in command and encoder_binary_name != 'ffmpeg':
         cmds.extend(['--csv'])
         if feature_type in command and feature_type != '':	
             csv_files, csv_file = '', ''
@@ -1708,7 +1713,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
             csv_file = csv_files[:-1]
             cmds.extend([csv_file])
         else:
-            cmds.extend(['csv_file.csv'])
+            cmds.extend(['csv_file.csv'])  
     logs, errors, summary = '', '', ''
     if not os.path.isfile(x265):
         logger.write('x265 executable not found')

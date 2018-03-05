@@ -15,7 +15,155 @@ try:
     from conf import encoder_binary_name
 except ImportError, e:
     encoder_binary_name = 'x265'
-	
+
+def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
+    if 'ffmpeg' in command:
+        pipe = '-|'
+        ffmpeg = 'ffmpeg'
+        ffmpegformat = command.split('-i ')[1].split('-|')[0]
+        options = command.split('-|')[1]
+        final_command = [ffmpegpath]
+        final_command.append('-i')
+        final_command.append(seq)
+        final_command.extend(shlex.split(ffmpegformat))
+        final_command.append(pipe)
+        final_command.append(build)
+        final_command.extend(shlex.split(options))
+        final_command.extend(extras)
+        final_command.append('-o')
+        return final_command
+    cmd_string = str(command)
+    numStrm = cmd_string.count('}')
+    k=0
+    commandslist = []
+    final_command = always
+    final_command += ' '
+    final_command += cmd_string.split('{')[0]
+    while k<numStrm:
+        #cmd = cmd_string.split('[')[1].split(']')[0]
+        cmd = cmd_string.split('}')[0].split('{')[1];
+        cmd = cmd.replace('[ ', '')
+        cmd = cmd.replace(' ]', '')
+        cmd = cmd.replace(' ;', '')
+        final_command += cmd
+        if k < numStrm-1:
+            cmd_string = cmd_string.split('}')[1]
+        k=k+1     
+        bitrates, vbvmaxrates, vbvbufsizes, crf, crfmax, crfmin = [], [], [], [], [], []
+        tchash = []
+        if '--vbv-bufsize ' in cmd:
+            list = cmd.split('--vbv-bufsize ')[1].split(' ')[0]
+            for l in list.split (','):
+                vbvbufsizes.append(l)
+            cmd = cmd.replace('--vbv-bufsize ', '')
+            cmd = cmd.replace(list, '')
+        if '--vbv-maxrate ' in cmd:
+            list = cmd.split('--vbv-maxrate ')[1].split(' ')[0]
+            for l in list.split (','):
+                vbvmaxrates.append(l)
+            cmd = cmd.replace('--vbv-maxrate ', '')
+            cmd = cmd.replace(list, '')
+        if '--crf-max' in cmd:
+            list =  cmd.split('--crf-max ')[1].split(' ')[0]
+            for l in list.split (','):
+                crfmax.append(l)
+            cmd = cmd.replace('--crf-max ', '')
+            cmd = cmd.replace(list, '')
+        if '--crf-min' in cmd:
+            list =  cmd.split('--crf-min ')[1].split(' ')[0]
+            for l in list.split (','):
+                crfmin.append(l)
+            cmd = cmd.replace('--crf-min ', '')
+            cmd = cmd.replace(list, '')
+        if '--bitrate' in cmd:
+            list = cmd.split('--bitrate ')[1].split(' ')[0]
+            for l in list.split (','):
+                bitrates.append(l)
+            cmd = cmd.replace('--bitrate ', '')
+            cmd = cmd.replace(list, '')
+            cnt = 0
+            for i in range(len(bitrates)):
+                command = cmd
+                command += ' --bitrate '
+                command += str(bitrates[i])
+                if vbvbufsizes and vbvbufsizes[i]:
+                    command +=  ' --vbv-bufsize '
+                    command +=  str(vbvbufsizes[i])
+                if vbvmaxrates and vbvmaxrates[i]:
+                    command +=  ' --vbv-maxrate '
+                    command +=  str(vbvmaxrates[i])
+                command = command.replace('; ','')
+                command = command.replace('[ ','')
+                command = command.replace(' ]','')
+                command += ' '
+                commandslist.append(command)
+                testhash = utils.testcasehash(seq, command)
+                tchash.append(testhash)
+                utils.testhashlist.append(testhash)
+        if '--crf' in cmd:
+            list = cmd.split('--crf ')[1].split(' ')[0]
+            for l in list.split (','):
+                crf.append(l)
+            cmd = cmd.replace('--crf ', '')
+            cmd = cmd.replace(list, '')            
+            for i in range(len(crf)):
+                command = cmd
+                command = ' --crf '
+                command += str(crf[i])
+                if crfmax and crfmax[i]:
+                    command +=  ' --crf-max '
+                    command +=  str(crfmax[i])
+                if crfmin and crfmin[i]:
+                    command +=  ' --crf-min '
+                    command +=  str(crfmin[i])
+                if vbvbufsizes and vbvbufsizes[i]:
+                    command +=  ' --vbv-bufsize '
+                    command +=  str(vbvbufsizes[i])
+                if vbvmaxrates and vbvmaxrates[i]:
+                    command +=  ' --vbv-maxrate '
+                    command +=  str(vbvmaxrates[i])
+                command = command.replace(';','')
+                command = command.replace('[ ','')
+                command = command.replace(' ]','')
+                command += ' '
+                commandslist.append(command)
+                testhash = utils.testcasehash(seq, command)
+                utils.testhashlist.append(testhash)
+                final_command += command    
+        final_command += ' -o '
+        if encoder_binary_name == 'x264' or '--codec "x264"' in command:
+            final_command += '.h264,'.join(tchash)
+            final_command += '.h264'	
+        else:
+            final_command += '.hevc,'.join(tchash)
+            final_command += '.hevc'
+
+        csv_filenames = ''
+        for i in tchash:
+            csv_filenames += i
+            csv_filenames += '.csv,'
+        csv_filenames = csv_filenames[:-1]
+        final_command += ' --csv '
+        final_command += csv_filenames            
+
+        if '--recon=recon.y4m' in extras:
+            recon_filenames = ''
+            for i in tchash:
+                recon_filenames += i
+                recon_filenames += '.y4m,'
+            recon_filenames = recon_filenames[:-1]
+            final_command += ' --recon='
+            final_command += recon_filenames
+        elif '--recon=recon.yuv' in extras:
+            recon_filenames = ''
+            for i in tchash:
+                recon_filenames += i
+                recon_filenames += '.yuv,'
+            recon_filenames = recon_filenames[:-1]
+            final_command += ' --recon='
+            final_command += recon_filenames        
+    return final_command
+
 def arrangecli(seq, command, always, extras, ffmpegpath, build):
     if 'ffmpeg' in command:
         pipe = '-|'
