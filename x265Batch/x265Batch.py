@@ -29,6 +29,11 @@ try:
     from paths_cfg import feature
 except ImportError, e:
     feature = 'empty'
+
+try:
+    from paths_cfg import encoder_binary_name
+except ImportError, e:
+    encoder_binary_name = 'x265'
 	
 try:
     from paths_cfg import lib_path
@@ -209,7 +214,9 @@ class Test:
             os.mkdir(self.resultdir)
 
     def prepare_commands(self):
+        global csv_filename
         with open(self.cfg) as f:
+            csv_filename = (self.tag if self.tag != '' else 'x265Benchmark') + '.csv'
             for cmd in f:
                 for i in range(self.iter):
                     if (ffmpeg_feature == True):
@@ -243,11 +250,11 @@ class Test:
                                                     '--csv',  csv_files,
                                                     '-o ',
                                                     output_files if not self.out == True else '//dev//null' if osname == 'Linux' else 'nul'
-                                                    ,'\n']))
+                                                    ,'\n']))					
                     else:
                         self.commands.write(' '.join([self.cli,\
                                                     '--input', os.path.join(self.inputsequences_path, cmd.strip('\r\n')), 
-                                                    '--csv',  os.path.join(self.resultdir, (self.tag if self.tag != '' else 'x265Benchmark') + '.csv'), 
+                                                    '--csv',  os.path.join(self.resultdir, csv_filename), 
                                                     '-o ',
                                                     os.path.join(self.outputfile_path, ''.join(cmd.strip('\r\n').split(' '))) + self.tag + '.hevc' if not self.out == True else '//dev//null' if osname == 'Linux' else 'nul'
                                                     , '\n']))
@@ -261,7 +268,7 @@ class Test:
                             for i in range(self.iter):
                                 self.commands.write(' '.join([self.cli,\
                                                             '--input', os.path.join(self.inputsequences_path, cmd.strip('\r\n')), 
-                                                            '--csv',  os.path.join(self.resultdir, (self.tag if self.tag != '' else 'x265Benchmark') + '.csv'), 
+                                                            '--csv',  os.path.join(self.resultdir, csv_filename), 
                                                             '-o ',
                                                             os.path.join(self.outputfile_path, ''.join(cmd.strip('\r\n').split(' '))) + self.tag + '.hevc'  if not self.out == True else '//dev//null' if osname == 'Linux' else 'nul'
                                                             , '\n']))
@@ -431,53 +438,92 @@ def encode(test):
             # sleep for 10 seconds to release the resource completely....
             time.sleep(10)
 
+def writetoken(cmdline, test, final):	
+    bitrates, maxrates, bufsizes = [], [], [] 
+    for i in range(len(cmdline)):
+        test.parsecsv(cmdline[i], i, cmdline)
+    if test.preset == '':
+        test.preset = 'medium'
+    if test.abr == '' and test.cqp == '' and test.crf == '':
+        test.crf = '28'
+    if test.feature == feature:
+        if not bitrates:
+            bitrates = (test.abr).split(",")
+            if '--vbv-bufsize' in cmdline:
+                bufsizes = (test.vbvbufsize).split(",")
+            if '--vbv-maxrate' in cmdline:
+                maxrates = (test.vbvmaxrate).split(",")								
+        if bitrates:
+            if bufsizes and maxrates:				
+                final.write(''.join(','.join([test.video, test.feature, test.preset, bitrates.pop(0), test.cqp, test.crf, bufsizes.pop(0), maxrates.pop(0)])))
+            else:
+                 final.write(''.join(','.join([test.video, test.feature, test.preset, bitrates.pop(0), test.cqp, test.crf, test.vbvbufsize, test.vbvmaxrate])))								
+    else:						
+        final.write(''.join(','.join([test.video, test.feature, test.preset, test.abr, test.cqp, test.crf, test.vbvbufsize, test.vbvmaxrate])))						   
+			
 def regeneratecsv(test):
+    global encoder_binary_version, csv_filename
     csvheader = True
     csvlist = glob.glob(os.path.join(test.resultdir, '*.csv'))
     final = open(os.path.join(test.resultdir, test.finalcsv), 'w')
-    for csv in csvlist:
-        with open(csv) as lines:
-            bitrates, maxrates, bufsizes = [], [], [] 
-            for line in lines:
-                tokens = line.split(', ')
-                cmdline = tokens[0].split()
-                if cmdline[0] == 'Command,':
-                    if csvheader == True:
-                        final.write(' Video, Feature, Preset, ABR, CQP, CRF, vbv-bufsize, vbv-maxrate')
-                        csvheader = False
+    if encoder_binary_name == 'x265' or encoder_binary_name == 'x264':
+        for csv in csvlist:
+            with open(csv) as lines:
+                bitrates, maxrates, bufsizes = [], [], [] 
+                for line in lines:
+                    tokens = line.split(', ')
+                    cmdline = tokens[0].split()
+                    if cmdline[0] == 'Command,':
+                        if csvheader == True:
+                            final.write(' Video, Feature, Preset, ABR, CQP, CRF, vbv-bufsize, vbv-maxrate')							
+                            csvheader = False
+                        else:
+                            continue
                     else:
-                        continue
-                else:
-                    for i in range(len(cmdline)):
-                        test.parsecsv(cmdline[i], i, cmdline)
-                    if test.preset == '':
-                        test.preset = 'medium'
-                    if test.abr == '' and test.cqp == '' and test.crf == '':
-                        test.crf = '28'
-                    if test.feature == feature:
-                        if not bitrates:
-                            bitrates = (test.abr).split(",")
-                            if '--vbv-bufsize' in cmdline:
-                                bufsizes = (test.vbvbufsize).split(",")
-                            if '--vbv-maxrate' in cmdline:
-                                maxrates = (test.vbvmaxrate).split(",")								
-                        if bitrates:
-                            if bufsizes and maxrates:				
-                                final.write(''.join(','.join([test.video, test.feature, test.preset, bitrates.pop(0), test.cqp, test.crf, bufsizes.pop(0), maxrates.pop(0)])))
-                            else:
-                                final.write(''.join(','.join([test.video, test.feature, test.preset, bitrates.pop(0), test.cqp, test.crf, test.vbvbufsize, test.vbvmaxrate])))								
-                    else:						
-                        final.write(''.join(','.join([test.video, test.feature, test.preset, test.abr, test.cqp, test.crf, test.vbvbufsize, test.vbvmaxrate])))						   
+                        writetoken(cmdline, test, final)
+                        test.preset = test.abr = test.cqp = test.crf = test.vbvbufsize = test.vbvmaxrate = test.feature = ''
 
-                    test.preset = test.abr = test.cqp = test.crf = test.vbvbufsize = test.vbvmaxrate = test.feature = ''
+                    for j in range(len(tokens)):
+                        a = tokens[j].replace(",",".")
+                        final.write(',')
+                        final.write(a)				
 
+    else:
+        currentTestCsv = open(os.path.join(test.resultdir, csv_filename), 'r')
+        writeline=''
+        start_line = ''		
+        currentTestCsvLines = currentTestCsv.readlines()
+        start_line = currentTestCsvLines[0]	
+        tokens = start_line.split(', ')
+        cmdline = tokens[0].split()
+        encoder_binary_version = currentTestCsvLines[4]
+        if cmdline[0] == 'Command':
+            if csvheader == True:
+                final.write(' Video, Feature, Preset, ABR, CQP, CRF, vbv-bufsize, vbv-maxrate')
+                csvheader = False		
                 for j in range(len(tokens)):
                     a = tokens[j].replace(",",".")
+                    if '\n' in a:
+                        a = tokens[j].replace("\n",",")				
                     final.write(',')
-                    final.write(a)
-
-    final.close()
-
+                    final.write(a)  
+                final.write('Encoder Version\n')
+        for line in range(1, len(currentTestCsvLines), 4):
+            writeline = currentTestCsvLines[line]
+            tokens = writeline .split(', ')
+            cmdline = tokens[0].split()
+            writetoken(cmdline,test, final)   
+            test.preset = test.abr = test.cqp = test.crf = test.vbvbufsize = test.vbvmaxrate = test.feature = ''
+            for j in range(len(tokens)):
+                a = tokens[j].replace(",",".")
+                final.write(',')
+                if '\n' in a:
+                    a = tokens[j].replace("\n",",")
+                final.write(a)
+            final.write(encoder_binary_version)					
+    final.close()		
+			
+			
 def compare(test):
     if not os.path.exists(os.path.join(test.resultdir, test.finalcsv)) or not os.path.exists(os.path.join(test.cwd, test.goldendir, test.finalcsv)):
         print('csv file does not exist to compare', os.path.join(test.resultdir, test.finalcsv), os.path.exists(os.path.join(test.cwd, test.goldendir, test.finalcsv)))
