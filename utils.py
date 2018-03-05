@@ -1237,7 +1237,7 @@ def getcommits():
             print 'changes in %s ignored, my_local_changers is false' % fname
     try:
         print 'Downloading most recent list of output changing commits...',
-        l = urllib.urlopen('https://bitbucket.org/sborho/test-harness/raw/tip/' + \
+        l = urllib.urlopen('https://bitbucket.org/multicoreware/test-harness/raw/tip/' + \
                           fname).readlines()
         print 'done\n'
         l = testrev(l)
