@@ -622,7 +622,8 @@ ignored_x265_warnings = (
     'Disabling pme and pmode: --pme and --pmode cannot be used with SEA motion search!',
     'multi-pass-opt-analysis/multi-pass-opt-distortion incompatible with pmode/pme, Disabling pmode/pme',
     'Turning on repeat-headers for HDR compatibility',
-    ' OPENCL not enabled in cmake - encode in default x265 without offload'	
+    ' OPENCL not enabled in cmake - encode in default x265 without offload',
+    'GOP Parallel Encoder: set min keyint = max keyint'	
 )
 
 
