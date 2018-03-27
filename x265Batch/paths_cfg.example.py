@@ -1,4 +1,7 @@
 # configure all the variables beginning with my_, then you will be able to run the test script
+# system description
+my_system = 'System: '
+my_hardware = 'Hardware: '
 
 # locate the paths
 my_sequences     = r''

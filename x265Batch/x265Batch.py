@@ -10,12 +10,13 @@ import shutil
 import glob
 import sys
 import platform
+import re
 header = {}
 CWD = os.getcwd()
 path = {}
 osname = platform.system()
 try:
-    from paths_cfg import my_sequences, my_bitstreams
+    from paths_cfg import my_sequences, my_bitstreams, my_system, my_hardware
     from paths_cfg import my_RAMDISK, my_compareFPS, my_csvupload
 	
     # support ~/repos/x265 syntax
@@ -226,8 +227,8 @@ class Test:
                             cmd = cmd[:-1]
                         elif cmd[-2] == '"':
                             cmd = cmd[:-2]
-                        self.commands.write(' '.join([ffmpegcommand ,\
-                                                    '-i', os.path.join(self.inputsequences_path,  cmd.strip('\r\n')),
+                        self.commands.write(''.join([ffmpegcommand ,\
+                                                    '-i ', os.path.join(self.inputsequences_path,  cmd.strip('"\r\n')),
                                                     ':csv=',  os.path.join(self.resultdir, (self.tag if self.tag != '' else 'x265Benchmark') + '.csv"'),
                                                     output_files if not self.out == True else ' -f null /dev/null' if osname == 'Linux' else ' -f null /dev/null '
                                                     ,'\n']))								
@@ -296,29 +297,43 @@ class Test:
             os.remove(os.path.join(self.inputsequences_path, self.seq))
             shutil.move(os.path.join(self.outputfile_path, '.'), os.path.join(self.my_bitstreams, datetime.datetime.now().strftime('bitstreams-%y%m%d%H%M%S')))
         except (shutil.Error, OSError), e:
-            pass
+            pass				
 
     def parsecsv(self, tok, index, cmdline):
         if tok == '--input' or (ffmpeg_feature == True and tok == '-i'):
             self.video = os.path.basename(cmdline[index + 1])
         elif tok == '-p' or tok == '--preset'  or (ffmpeg_feature == True and tok == '-preset'):
             self.preset = cmdline[index + 1]
-        elif tok == '--bitrate' or (ffmpeg_feature == True and tok == '-bitrate'):
-            self.abr = cmdline[index + 1]
-        elif tok == '-q' or tok == '--qp'  or (ffmpeg_feature == True and tok == '-qp'):
-            self.cqp = cmdline[index + 1]
-        elif tok == '--crf'  or (ffmpeg_feature == True and tok == '-crf'):
-            self.crf = cmdline[index + 1]
-        elif tok == '--vbv-bufsize'  or (ffmpeg_feature == True and tok == '-vbv-bufsize'):
-            self.vbvbufsize = cmdline[index + 1]
-        elif tok == '--vbv-maxrate'  or (ffmpeg_feature == True and tok == '-vbv-maxrate'):
-            self.vbvmaxrate = cmdline[index + 1]
-        elif tok == '--feature'  or (ffmpeg_feature == True and tok == '-feature'):
-            self.feature = cmdline[index + 1]
-        elif tok == '--preset'  or (ffmpeg_feature == True and tok == '-preset'):
-            self.preset = cmdline[index + 1]			
-
-
+        if ffmpeg_feature == True:
+			params = re.split(',|\:|\=', tok)
+			if ('bitrate' in params or 'qp' in params or 'crf' in params or 'vbv-bufsize' in params or 'vbv-maxtrate' in params):
+				m = 0
+				for param in params:
+					if param == 'bitrate':
+						self.abr = params[m + 1]
+					if param == 'qp':
+						self.cqp = params[m + 1]
+					if param == 'crf':
+						self.crf = params[m + 1]
+					if param == 'vbv-bufsize':
+						self.vbvbufsize = params[m + 1]
+					if param == 'vbv-maxrate':
+						self.vbvmaxrate = params[m + 1]
+					m = m + 1
+		else:
+			if tok == '--bitrate':
+				self.abr = cmdline[index + 1]
+			elif tok == '-q' or tok == '--qp':
+				self.cqp = cmdline[index + 1]
+			elif tok == '--crf':
+				self.crf = cmdline[index + 1]
+			elif tok == '--vbv-bufsize':
+				self.vbvbufsize = cmdline[index + 1]
+			elif tok == '--vbv-maxrate':
+				self.vbvmaxrate = cmdline[index + 1]
+			elif tok == '--feature':
+				self.feature = cmdline[index + 1]		
+			
 def Bjontegaardmetric(ssim1,bitrate1,ssim2,bitrate2):
 
         import math
@@ -396,6 +411,10 @@ def email_results(test, f1, f2):
     duration = str(datetime.datetime.now() - test.start_time).split('.')[0]
 
     msg = MIMEMultipart()
+    body = MIMEText(my_system)
+    msg.attach(body)
+    body = MIMEText(my_hardware)
+    msg.attach(body)	
     body = MIMEText("Test Duration(H:M:S) = {0}".format(duration) + ''.join(test.table), 'html')
     msg.attach(body)
     text0 = MIMEImage(open(f1, 'rb').read(), _subtype="csv")
@@ -437,14 +456,14 @@ def encode(test):
                 print("\n Encoding failed: %s \n" %cmd)
             # sleep for 10 seconds to release the resource completely....
             time.sleep(10)
-
+			
 def writetoken(cmdline, test, final):	
     bitrates, maxrates, bufsizes = [], [], [] 
     for i in range(len(cmdline)):
         test.parsecsv(cmdline[i], i, cmdline)
     if test.preset == '':
         test.preset = 'medium'
-    if test.abr == '' and test.cqp == '' and test.crf == '':
+    if test.crf == '':
         test.crf = '28'
     if test.feature == feature:
         if not bitrates:
@@ -552,6 +571,7 @@ def compare(test):
 
             tok = current_csvlines[i].split(',')
             if tok[0] == test.video and tok[1] == test.feature and tok[2] == test.preset and tok[3] == test.abr and tok[4] == test.cqp and tok[5] == test.crf and tok[6] == test.vbvbufsize and tok[7] == test.vbvmaxrate:
+                version_len_cur = len(tok)
                 for j in range(test.iter):
                     tok = current_csvlines[i+j].split(',')
                     test.avg.append(float(tok[11]))
@@ -569,7 +589,7 @@ def compare(test):
                                             test.vbvbufsize, 
                                             test.vbvmaxrate, 
                                             test.rev.strip('\r\n'), 
-                                            tok[version_len-1].strip('\r\n'), 
+                                            tok[version_len_cur-1].strip('\r\n'), 
                                             str(test.fps), 
                                             str(fps), 
                                             perc_increase)
