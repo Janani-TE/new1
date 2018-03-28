@@ -171,6 +171,8 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
             recon_filenames = recon_filenames[:-1]
             final_command += ' --recon='
             final_command += recon_filenames
+    final_command += ' '
+    final_command += ' '.join(extras)
     return final_command
 
 def arrangecli(seq, command, always, extras, ffmpegpath, build):
