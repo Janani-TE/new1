@@ -1900,7 +1900,7 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
     group = my_builds[key][1]
     # Analysis save/load comparison once encoder success.If encoder crash exist it will not compare the output files.
     cwd = os.getcwd()
-    if os.path.isfile(os.path.join(tmpdir,bitstream)):
+    if os.path.isfile(os.path.join(tmpdir,bitstream)) and mulres == 0:
         if 'analysis-save' in command:
             savesummary = sum
             open('savesummary.txt', 'w').write(savesummary)
@@ -2407,6 +2407,8 @@ def runtest(key, seq, commands, always, extras):
     folder.
     '''
 
+    global mulres 
+    mulres = 0
     def skip(*matchers):
         if skip_string:
             if [True for f in matchers if skip_string in f]:
@@ -2424,16 +2426,20 @@ def runtest(key, seq, commands, always, extras):
     else:       	
         for command in commands.split('::'):
             command = command.strip()
+            if ',' in command :
+                seq, command = command.split(',', 1)
+                seq = seq.strip()
+                command = command.strip()
+                mulres = 1
             if always:
                 command = command + ' ' + always
             testhash = testcasehash(seq, command)
             if skip(seq, command, testhash):
                 return
-            cmds.append((command, testhash))			
+            cmds.append((command, testhash, seq))
     tmpfolder = tempfile.mkdtemp(prefix='x265-temp')
     try:
-
-        for command, testhash in cmds:
+        for command, testhash, seq in cmds:
             logger.settest(seq, command, extras, testhash)
             logger.write('testing x265-%s %s %s' % (key, seq, command))
             print 'extras: %s ...' % ' '.join(extras),
