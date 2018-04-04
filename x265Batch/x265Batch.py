@@ -121,7 +121,7 @@ class Test:
         self.avg = []
         self.rev = ''
         self.feature = ''
-        self.tableheader = r'<tr><th>{0}</th><th>{1}</th><th>{2}</th><th>{3}</th><th>{4}</th><th>{5}</th><th>{6}</th><th>{7}</th><th>{8}</th><th>{9}</th><th>{10}</th><th>{11}</th><th>{12}</th></tr>'\
+        self.tableheader = r'<tr><th>{0}</th><th>{1}</th><th>{2}</th><th>{3}</th><th>{4}</th><th>{5}</th><th>{6}</th><th>{7}</th><th>{8}</th><th>{9}</th><th>{10}</th><th>{11}</th><th>{12}</th><th>{13}</th><th>{14}</th></tr>'\
                                    .format('Video',
                                    'Feature',
                                    'Preset',
@@ -132,6 +132,8 @@ class Test:
                                    'vbv-maxrate',
                                    'golden tip',
                                    'current tip',
+                                   'Golden SSIM(dB)',
+                                   'Current SSIM(dB)',
                                    'harmonicmean of golden FPS',
                                    'harmonicmean of current FPS', 
                                    '% of increase with current FPS')
@@ -557,6 +559,8 @@ def compare(test):
     golden = open(os.path.join(test.goldendir, test.finalcsv), 'r')
     current_csvlines = current.readlines()
     golden_csvlines = golden.readlines()
+    golden_ssim = ''
+    current_ssim = ''
     if len(current_csvlines) == len(golden_csvlines):
         test.table.append(test.tableheader)
         for i in range(1, len(golden_csvlines), test.iter):
@@ -566,6 +570,7 @@ def compare(test):
             for j in range(test.iter):
                 tok = golden_csvlines[i+j].split(',')		
                 test.avg.append(float(tok[11]))
+            golden_ssim = tok[18]
             test.fps = "%.2f" % harmonic_mean(test.avg)
             test.avg = []
 
@@ -575,11 +580,12 @@ def compare(test):
                 for j in range(test.iter):
                     tok = current_csvlines[i+j].split(',')
                     test.avg.append(float(tok[11]))
+                current_ssim = tok[18]
                 fps = "%.2f" % harmonic_mean(test.avg)
                 test.avg = []
                 perc_increase = float("%.2f" %(100 * ((float(fps) - float(test.fps)) / float(test.fps))))
                 temp_dict['fps'] = perc_increase
-                temp_dict['cmd'] = r'<tr><th>{0}</th><th>{1}</th><th>{2}</th><th>{3}</th><th>{4}</th><th>{5}</th><th>{6}</th><th>{7}</th><th>{8}</th><th>{9}</th><th>{10}</th><th>{11}</th><th>{12}</th></tr>'\
+                temp_dict['cmd'] = r'<tr><th>{0}</th><th>{1}</th><th>{2}</th><th>{3}</th><th>{4}</th><th>{5}</th><th>{6}</th><th>{7}</th><th>{8}</th><th>{9}</th><th>{10}</th><th>{11}</th><th>{12}</th><th>{13}</th><th>{14}</th></tr>'\
                                     .format(test.video, 
                                             test.feature,
                                             test.preset, 
@@ -589,7 +595,9 @@ def compare(test):
                                             test.vbvbufsize, 
                                             test.vbvmaxrate, 
                                             test.rev.strip('\r\n'), 
-                                            tok[version_len_cur-1].strip('\r\n'), 
+                                            tok[version_len_cur-1].strip('\r\n'),
+                                            golden_ssim,
+                                            current_ssim,
                                             str(test.fps), 
                                             str(fps), 
                                             perc_increase)
