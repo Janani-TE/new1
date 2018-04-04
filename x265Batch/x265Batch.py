@@ -225,15 +225,98 @@ class Test:
                     if (ffmpeg_feature == True):
                         output_files = ''
                         ffmpegcommand = (self.cli).split('--psnr ')[0]
-                        if cmd[-1] == '"':
-                            cmd = cmd[:-1]
-                        elif cmd[-2] == '"':
-                            cmd = cmd[:-2]
-                        self.commands.write(''.join([ffmpegcommand ,\
+                        if feature in cmd:
+                            cmd_string = cmd                        
+                            if '}' in cmd:
+                                numStrm = cmd_string.count('}')
+                                k = 0;
+                                final_command = cmd_string.split('{')[0]
+                                while (k < numStrm):
+                                    crflist, bitratelist = [], []                               
+                                    linesplit = cmd_string.split('}')[0].split('{')[1]
+                                    k = k+1;
+                                    if (k < numStrm):
+                                        cmd_string = cmd_string.split('}')[1]
+                                    if 'crf=' in linesplit:
+                                        list = linesplit.split('(crf=')[1].split(')')[0]
+                                        for l in list.split (','):
+                                            crflist.append(l)
+                                        linesplit = linesplit.replace('(', '')
+                                        linesplit = linesplit.replace(')', '')
+                                        csv_file=':csv='
+                                        for i in range(len(crflist)):
+                                            csv_file += os.path.join(self.resultdir,(self.tag if self.tag != '' else 'x265Benchmark')+'.csv,')
+                                        csv_file = csv_file[:-1]
+                                        csv_file += ':csv-log-level=0:'
+                                        linesplit += csv_file
+                                    elif 'bitrate=' in linesplit:
+                                        list = linesplit.split('(bitrate=')[1].split(')')[0]
+                                        for l in list.split (','):
+                                            bitratelist.append(l)
+                                        linesplit = linesplit.replace('(', '')
+                                        linesplit = linesplit.replace(')', '')
+                                        csv_file=':csv='
+                                        for i in range(len(bitratelist)):
+                                            csv_file += os.path.join(self.resultdir,(self.tag if self.tag != '' else 'x265Benchmark')+'.csv,')
+                                        csv_file = csv_file[:-1]
+                                        csv_file += ':csv-log-level=0:'
+                                        linesplit += csv_file
+                                    final_command += linesplit
+                                final_command = final_command[:-1]
+                                final_command += '" -uhdkit-bitstreams '
+                                final_command += cmd.split('-uhdkit-bitstreams')[1]
+                                final_command = final_command.replace('{', '')
+                                final_command = final_command.replace('}', '')
+                                final_command = final_command.replace('(', '')
+                                final_command = final_command.replace(')', '')
+                            else:
+                                bitratelist, crflist = [], []
+                                cmd_string = cmd
+                                if 'bitrate=' in cmd:
+                                    list = cmd.split('[bitrate=')[1].split(']')[0]
+                                    for l in list.split(','):
+                                        bitratelist.append(l)
+                                    csv_file=':csv='
+                                    for i in range(len(bitratelist)):
+                                        csv_file += os.path.join(self.resultdir,(self.tag if self.tag != '' else 'x265Benchmark')+'.csv,')
+                                    csv_file = csv_file[:-1]
+                                    final_command = cmd_string.split('[')[0]
+                                    final_command += cmd_string.split(']')[0].split('[')[1]
+                                    final_command += csv_file
+                                    final_command += ':csv-log-level=0'
+                                    final_command += cmd_string.split(']')[1]
+                                elif 'crf=' in cmd:
+                                    list = cmd.split('[crf=')[1].split(']')[0]
+                                    for l in list.split(','):
+                                        crflist.append(l)
+                                    csv_file=':csv='
+                                    for i in range(len(crflist)):
+                                        csv_file += os.path.join(self.resultdir,(self.tag if self.tag != '' else 'x265Benchmark')+'.csv,')
+                                    csv_file = csv_file[:-1]
+                                    final_command = cmd_string.split('[')[0]
+                                    final_command += cmd_string.split(']')[0].split('[')[1]
+                                    final_command += csv_file
+                                    final_command += ':csv-log-level=0'
+                                    final_command += cmd_string.split(']')[1]
+                                final_command = final_command.replace('[', '')
+                                final_command = final_command.replace(']', '')
+                            
+                            self.commands.write(' '.join([ffmpegcommand ,\
+                                                        '-i', os.path.join(self.inputsequences_path,  final_command.strip('"\r\n'))
+                                                        ,output_files if not self.out == True else ' -f null /dev/null' if osname == 'Linux' else ' -f null /dev/null '
+                                                        ,'\n']))
+                        else:
+                            output_files = ''
+                            ffmpegcommand = (self.cli).split('--psnr ')[0]
+                            if cmd[-1] == '"':
+                                cmd = cmd[:-1]
+                            elif cmd[-2] == '"':
+                                cmd = cmd[:-2]
+                            self.commands.write(''.join([ffmpegcommand ,\
                                                     '-i ', os.path.join(self.inputsequences_path,  cmd.strip('"\r\n')),
                                                     ':csv=',  os.path.join(self.resultdir, (self.tag if self.tag != '' else 'x265Benchmark') + '.csv"'),
                                                     output_files if not self.out == True else ' -f null /dev/null' if osname == 'Linux' else ' -f null /dev/null '
-                                                    ,'\n']))								
+                                                    ,'\n']))
                     elif feature in cmd:
                         commandline = cmd.split('[')[0]
                         commandline += cmd.split('[')[1].split(']')[0]
@@ -307,21 +390,23 @@ class Test:
         elif tok == '-p' or tok == '--preset'  or (ffmpeg_feature == True and tok == '-preset'):
             self.preset = cmdline[index + 1]
         if ffmpeg_feature == True:
-			params = re.split(',|\:|\=', tok)
-			if ('bitrate' in params or 'qp' in params or 'crf' in params or 'vbv-bufsize' in params or 'vbv-maxtrate' in params):
-				m = 0
-				for param in params:
-					if param == 'bitrate':
-						self.abr = params[m + 1]
-					if param == 'qp':
-						self.cqp = params[m + 1]
-					if param == 'crf':
-						self.crf = params[m + 1]
-					if param == 'vbv-bufsize':
-						self.vbvbufsize = params[m + 1]
-					if param == 'vbv-maxrate':
-						self.vbvmaxrate = params[m + 1]
-					m = m + 1
+            params = re.split(',|\:|\=', tok)
+            if ('bitrate' in params or 'qp' in params or 'crf' in params or 'vbv-bufsize' in params or 'vbv-maxtrate' in params):
+                m = 0
+                for param in params:
+                    if param == 'bitrate':
+                        self.abr = params[m + 1]
+                    if param == 'qp':
+                        self.cqp = params[m + 1]
+                    if param == 'crf':
+                        self.crf = params[m + 1]
+                    if param == 'vbv-bufsize':
+                        self.vbvbufsize = params[m + 1]
+                    if param == 'vbv-maxrate':
+                        self.vbvmaxrate = params[m + 1]
+                    if param == 'feature':
+                        self.feature = params[m + 1]
+                    m = m + 1
 		else:
 			if tok == '--bitrate':
 				self.abr = cmdline[index + 1]
