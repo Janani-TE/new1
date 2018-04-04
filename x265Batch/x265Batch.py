@@ -407,7 +407,7 @@ class Test:
                     if param == 'feature':
                         self.feature = params[m + 1]
                     m = m + 1
-		else:
+        else:
 			if tok == '--bitrate':
 				self.abr = cmdline[index + 1]
 			elif tok == '-q' or tok == '--qp':
