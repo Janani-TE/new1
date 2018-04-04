@@ -1867,7 +1867,7 @@ def parsex265(tmpfolder, stdout, stderr):
     # check for warnings and errors in x265 logs, report together with most
     # recent progress report if there was any
     lastprog = None
-    ls = len(os.linesep) if not my_shellpath else 1# 2 on Windows, 1 on POSIX
+    ls = len(os.linesep)
     for line in stderr.splitlines(True):
         warning_error_line = ''
         if (encoder_binary_name == 'x265' or encoder_binary_name == 'x264'):
