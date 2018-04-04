@@ -77,6 +77,8 @@ except ImportError, e:
     print '** `my_email_*` not defined, defaulting to None'
     my_ftp_url, my_ftp_user, my_ftp_pass, my_ftp_path_stable, my_ftp_path_default, my_ftp_path_stableold, my_ftp_path_defaultold = None, None, None, None, None, None, None
 
+featureFlag, featurecount =  False, 0
+featurebitrate, featuremaxrates, featurebufsizes, featurecrf = [], [], [], []
 
 class Test:
     def __init__(self):
@@ -385,28 +387,41 @@ class Test:
             pass				
 
     def parsecsv(self, tok, index, cmdline):
+        commandline = cmdline[10]
         if tok == '--input' or (ffmpeg_feature == True and tok == '-i'):
             self.video = os.path.basename(cmdline[index + 1])
         elif tok == '-p' or tok == '--preset'  or (ffmpeg_feature == True and tok == '-preset'):
             self.preset = cmdline[index + 1]
         if ffmpeg_feature == True:
-            params = re.split(',|\:|\=', tok)
-            if ('bitrate' in params or 'qp' in params or 'crf' in params or 'vbv-bufsize' in params or 'vbv-maxtrate' in params):
-                m = 0
-                for param in params:
-                    if param == 'bitrate':
-                        self.abr = params[m + 1]
-                    if param == 'qp':
-                        self.cqp = params[m + 1]
-                    if param == 'crf':
-                        self.crf = params[m + 1]
-                    if param == 'vbv-bufsize':
-                        self.vbvbufsize = params[m + 1]
-                    if param == 'vbv-maxrate':
-                        self.vbvmaxrate = params[m + 1]
-                    if param == 'feature':
-                        self.feature = params[m + 1]
-                    m = m + 1
+            if feature in commandline:
+                if 'bitrate' in commandline:
+                    self.abr = commandline.split('bitrate=')[1].split(':')[0]
+                if 'crf' in commandline:
+                    self.crf = commandline.split('crf=')[1].split(':')[0]
+                if 'vbv-bufsize' in commandline:
+                    self.vbvbufsize = commandline.split('vbv-bufsize=')[1].split(':')[0]
+                if 'vbv-maxrate' in commandline:
+                    self.vbvmaxrate = commandline.split('vbv-maxrate=')[1].split(':')[0]
+                if 'feature' in commandline:
+                    self.feature = commandline.split('feature=')[1].split(':')[0]
+            else:
+                params = re.split(',|\:|\=', tok)
+                if ('bitrate' in params or 'qp' in params or 'crf' in params or 'vbv-bufsize' in params or 'vbv-maxtrate' in params):
+                    m = 0
+                    for param in params:
+                        if param == 'bitrate':
+                            self.abr = params[m + 1]
+                        if param == 'qp':
+                            self.cqp = params[m + 1]
+                        if param == 'crf':
+                            self.crf = params[m + 1]
+                        if param == 'vbv-bufsize':
+                            self.vbvbufsize = params[m + 1]
+                        if param == 'vbv-maxrate':
+                            self.vbvmaxrate = params[m + 1]
+                        if param == 'feature':
+                            self.feature = params[m + 1]
+                        m = m + 1
         else:
 			if tok == '--bitrate':
 				self.abr = cmdline[index + 1]
@@ -543,30 +558,46 @@ def encode(test):
                 print("\n Encoding failed: %s \n" %cmd)
             # sleep for 10 seconds to release the resource completely....
             time.sleep(10)
-			
-def writetoken(cmdline, test, final):	
-    bitrates, maxrates, bufsizes = [], [], [] 
+
+def writetoken(cmdline, test, final, count):
+    global featureFlag, featurecount, featurebitrate, featuremaxrates, featurebufsizes, featurecrf
+    command = cmdline[10]
     for i in range(len(cmdline)):
         test.parsecsv(cmdline[i], i, cmdline)
     if test.preset == '':
         test.preset = 'medium'
     if test.crf == '':
         test.crf = '28'
-    if test.feature == feature:
-        if not bitrates:
-            bitrates = (test.abr).split(",")
-            if '--vbv-bufsize' in cmdline:
-                bufsizes = (test.vbvbufsize).split(",")
-            if '--vbv-maxrate' in cmdline:
-                maxrates = (test.vbvmaxrate).split(",")								
-        if bitrates:
-            if bufsizes and maxrates:				
-                final.write(''.join(','.join([test.video, test.feature, test.preset, bitrates.pop(0), test.cqp, test.crf, bufsizes.pop(0), maxrates.pop(0)])))
-            else:
-                 final.write(''.join(','.join([test.video, test.feature, test.preset, bitrates.pop(0), test.cqp, test.crf, test.vbvbufsize, test.vbvmaxrate])))								
-    else:						
-        final.write(''.join(','.join([test.video, test.feature, test.preset, test.abr, test.cqp, test.crf, test.vbvbufsize, test.vbvmaxrate])))						   
-			
+    if feature in command:
+        if featureFlag == False and featurecount == 0:
+            bitrates, maxrates, bufsizes, crf = [], [], [], []
+            featurecount = count
+            featureFlag = True
+            if 'bitrate' in command:
+                featurebitrate = (test.abr).split(",")
+            if 'vbv-bufsize' in command:
+                featurebufsizes = (test.vbvbufsize).split(",")
+            if 'vbv-maxrate' in command:
+                featuremaxrates = (test.vbvmaxrate).split(",")
+            if 'crf' in command:
+                featurecrf = (test.crf).split(",")
+
+        if (featurecount > 0 and featureFlag == True) :
+            if featurebitrate and featurebufsizes and featuremaxrates:
+                final.write(''.join(','.join([test.video, test.feature, test.preset, featurebitrate.pop(0), test.cqp, test.crf, featurebufsizes.pop(0), featuremaxrates.pop(0)])))
+            elif featurebitrate and not featurebufsizes and not featuremaxrates:
+                final.write(''.join(','.join([test.video, test.feature, test.preset, featurebitrate.pop(0), test.cqp, test.crf, test.vbvbufsize, test.vbvmaxrate])))
+            elif featurecrf and featurebufsizes and featuremaxrates:
+                final.write(''.join(','.join([test.video, test.feature, test.preset, test.abr, test.cqp, featurecrf.pop(0), featurebufsizes.pop(0), featuremaxrates.pop(0)])))
+            elif featurecrf and not featurebufsizes and not featuremaxrates:
+                final.write(''.join(','.join([test.video, test.feature, test.preset, test.abr, test.cqp, featurecrf.pop(0), test.vbvbufsize, test.vbvmaxrate])))
+            featurecount = (featurecount - 1)
+            if (featurecount == 0):
+                featureFlag = False
+
+    else:
+        final.write(''.join(','.join([test.video, test.feature, test.preset, test.abr, test.cqp, test.crf, test.vbvbufsize, test.vbvmaxrate])))
+
 def regeneratecsv(test):
     global encoder_binary_version, csv_filename
     csvheader = True
@@ -586,7 +617,7 @@ def regeneratecsv(test):
                         else:
                             continue
                     else:
-                        writetoken(cmdline, test, final)
+                        writetoken(cmdline, test, final, 0)
                         test.preset = test.abr = test.cqp = test.crf = test.vbvbufsize = test.vbvmaxrate = test.feature = ''
 
                     for j in range(len(tokens)):
@@ -597,7 +628,8 @@ def regeneratecsv(test):
     else:
         currentTestCsv = open(os.path.join(test.resultdir, csv_filename), 'r')
         writeline=''
-        start_line = ''		
+        start_line = ''
+        count = 0
         currentTestCsvLines = currentTestCsv.readlines()
         start_line = currentTestCsvLines[0]	
         tokens = start_line.split(', ')
@@ -615,10 +647,24 @@ def regeneratecsv(test):
                     final.write(a)  
                 final.write('Encoder Version\n')
         for line in range(1, len(currentTestCsvLines), 4):
+            bitratelist, crflist = [], []
             writeline = currentTestCsvLines[line]
             tokens = writeline .split(', ')
             cmdline = tokens[0].split()
-            writetoken(cmdline,test, final)   
+            if feature in cmdline[10]:
+                if 'bitrate=' in cmdline[10]:
+                    list = cmdline[10].split('bitrate=')[1].split(':')[0]
+                    for l in list.split (','):
+                        bitratelist.append(l)
+                    count = len(bitratelist)
+                if 'crf=' in cmdline[10]:
+                    list = cmdline[10].split('crf=')[1].split(':')[0]
+                    for l in list.split (','):
+                        crflist.append(l)
+                    count = len(crflist)
+                writetoken(cmdline,test, final, count)
+            else:
+                writetoken(cmdline,test, final, 0)
             test.preset = test.abr = test.cqp = test.crf = test.vbvbufsize = test.vbvmaxrate = test.feature = ''
             for j in range(len(tokens)):
                 a = tokens[j].replace(",",".")
@@ -627,7 +673,7 @@ def regeneratecsv(test):
                     a = tokens[j].replace("\n",",")
                 final.write(a)
             final.write(encoder_binary_version)					
-    final.close()		
+    final.close()
 			
 			
 def compare(test):
