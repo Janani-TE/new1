@@ -2422,11 +2422,11 @@ def runtest(key, seq, commands, always, extras):
     cmds = []
     if ('(' in commands or '[' in commands):
         testhash = testcasehash(seq, commands)
-        cmds.append((commands, testhash))	
+        cmds.append((commands, testhash, seq))	
     else:       	
         for command in commands.split('::'):
             command = command.strip()
-            if ',' in command :
+            if ',' in command and 'feature' not in command:
                 seq, command = command.split(',', 1)
                 seq = seq.strip()
                 command = command.strip()
