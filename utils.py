@@ -85,6 +85,11 @@ except ImportError, e:
     version_control = 'hg'
 hg = True if version_control == 'hg' else False
 
+try:
+    from conf import upload_install_folder
+except ImportError, e:
+    upload_install_folder = False
+
 bitstream = 'bitstream.hevc' if hg else 'bitstream.h264'
 testhashlist = []
 
@@ -270,7 +275,12 @@ class Build():
             cmakeopts.append('-DCMAKE_BUILD_TYPE=Release')
 
     def cmake_build(self, key, cmakeopts, buildfolder):
+        cmake_install_path = os.path.abspath(os.path.join(buildfolder, self.target, "install"))
+        cmakeopts.append('-DCMAKE_INSTALL_PREFIX=' + cmake_install_path)
         cout, cerr = cmake(self.gen, buildfolder, cmakeopts, **self.opts)
+
+        if not os.path.exists(cmake_install_path):
+            os.makedirs(cmake_install_path)
         empty = True
         if cerr:
             prefix = 'cmake errors reported for %s:: ' % key
@@ -815,86 +825,134 @@ def upload_binaries(ftpfolder=None):
         ftp_path = '/'.join([my_ftp_folder, build.profile]) if my_branch_binary == True else '/'.join([my_ftp_folder, osname, folder, build.profile])
         # open x265 binary & library files and give appropriate names for them to upload
         # ex: Darwin - x265-1.5+365-887ac5e457e0, libx265-1.5+365-887ac5e457e0.dylib
-        if encoder_binary_name == 'x265':
-            exe_name = '-'.join([encoder_binary_name, tagdistance, testrev]) + exe_ext
-            dll_name = '-'.join([encoder_library_name, tagdistance, testrev]) + dll_ext
+
+        if upload_install_folder == True:
+            install_dir = os.path.abspath(os.path.join(encoder_binary_name, build.folder, "default", build.target, "install"))
+            if not os.path.exists(install_dir):
+                print '%s install folder doesn not exist' % install_dir
+                continue
+
+            temp_name = '-'.join([encoder_binary_name, tagdistance, testrev])
+            upload_dir_name = os.path.abspath(os.path.join(install_dir, '..', temp_name))
+            shutil.make_archive(upload_dir_name, 'zip' , install_dir)
+            upload_dir_name += '.zip'
+
+            try:
+                install = open(upload_dir_name, 'rb')
+                upload_dir_name = os.path.basename(upload_dir_name)
+                if osname == 'Linux':
+                    compilertype = 'gcc'
+                    if build.opts.get('CXX') == 'icpc':
+                        compilertype = 'intel'
+                    ftp_path = '/'.join([my_ftp_folder, osname, compilertype, folder, build.profile])
+            except EnvironmentError, e:
+                logger.writeerr('failed to open install directory \n' + str(e))
+                print("failed to open install directory", e)
+                return
+
+            try:
+                ftp = ftplib.FTP(my_ftp_url)
+                ftp.login(my_ftp_user, my_ftp_pass)
+                ftp.cwd(ftp_path)
+
+                # list the files from ftp location
+                list_allfiles = ftp.nlst()
+
+                # if files is already exist, delete and re-upload
+                for file in (upload_dir_name):
+                    if file in list_allfiles:
+                        ftp.delete(file)
+
+                # upload the install directory
+                ftp.storbinary('STOR ' + upload_dir_name, install)
+                list_allfiles = ftp.nlst()
+                logger.logfp.write('\nuploaded - %s: %s' %(build.profile, upload_dir_name))
+                logger.logfp.flush()
+            except ftplib.all_errors, e:
+                logger.writeerr('\nftp failed to upload the installed directory\n' + str(e))
+                print "ftp failed", e
+                return
         else:
-            if build.profile == 'main':
-                exe_name = '_'.join([encoder_binary_name,'8bit', date, testrev]) + exe_ext
-                dll_name = '_'.join([encoder_library_name,'8bit', date, testrev]) + dll_ext
+            if encoder_binary_name == 'x265':
+                exe_name = '-'.join([encoder_binary_name, tagdistance, testrev]) + exe_ext
+                dll_name = '-'.join([encoder_library_name, tagdistance, testrev]) + dll_ext
             else:
-                exe_name = '_'.join([encoder_binary_name,'10bit', date, testrev]) + exe_ext
-                dll_name = '_'.join([encoder_library_name,'10bit', date, testrev]) + dll_ext
-        try:
-            x265 = open(build.exe, 'rb')
-            dll = open(build.dll, 'rb')
-            if osname == 'Linux':
-                compilertype = 'gcc'
-                if build.opts.get('CXX') == 'icpc':
-                    compilertype = 'intel'
-                ftp_path = '/'.join([my_ftp_folder, osname, compilertype, folder, build.profile])
-        except EnvironmentError, e:
-            logger.writeerr('failed to open x265binary or library file\n' + str(e))
-            print("failed to open x265binary or library file", e)
-            return
+                if build.profile == 'main':
+                    exe_name = '_'.join([encoder_binary_name,'8bit', date, testrev]) + exe_ext
+                    dll_name = '_'.join([encoder_library_name,'8bit', date, testrev]) + dll_ext
+                else:
+                    exe_name = '_'.join([encoder_binary_name,'10bit', date, testrev]) + exe_ext
+                    dll_name = '_'.join([encoder_library_name,'10bit', date, testrev]) + dll_ext
+            try:
+                x265 = open(build.exe, 'rb')
+                dll = open(build.dll, 'rb')
+                if osname == 'Linux':
+                    compilertype = 'gcc'
+                    if build.opts.get('CXX') == 'icpc':
+                        compilertype = 'intel'
+                    ftp_path = '/'.join([my_ftp_folder, osname, compilertype, folder, build.profile])
+            except EnvironmentError, e:
+                logger.writeerr('failed to open x265binary or library file\n' + str(e))
+                print("failed to open x265binary or library file", e)
+                return
 
-        try:
-            ftp = ftplib.FTP(my_ftp_url)
-            ftp.login(my_ftp_user, my_ftp_pass)
-            ftp.cwd(ftp_path)
+            try:
+                ftp = ftplib.FTP(my_ftp_url)
+                ftp.login(my_ftp_user, my_ftp_pass)
+                ftp.cwd(ftp_path)
 
-            # list the files from ftp location ex:
-            # x265-1.5+365-887ac5e457e0, libx265-1.5+365-887ac5e457e0.dylib...
-            list_allfiles = ftp.nlst()
+                # list the files from ftp location ex:
+                # x265-1.5+365-887ac5e457e0, libx265-1.5+365-887ac5e457e0.dylib...
+                list_allfiles = ftp.nlst()
 
-            # if files is already exist, delete and re-upload
-            for file in (exe_name, dll_name):
-                if file in list_allfiles:
-                    ftp.delete(file)
+                # if files is already exist, delete and re-upload
+                for file in (exe_name, dll_name):
+                    if file in list_allfiles:
+                        ftp.delete(file)
 
-            # upload x265 binary and corresponding libraries
-            ftp.storbinary('STOR ' + exe_name, x265)
-            ftp.storbinary('STOR ' + dll_name, dll)
-            list_allfiles = ftp.nlst()
-            logger.logfp.write('\nuploaded - %s: %s, %s' %(build.profile, exe_name, dll_name))
-            logger.logfp.flush()
-        except ftplib.all_errors, e:
-            logger.writeerr('\nftp failed to upload binaries\n' + str(e))
-            print "ftp failed", e
-            return
+                # upload x265 binary and corresponding libraries
+                ftp.storbinary('STOR ' + exe_name, x265)
+                ftp.storbinary('STOR ' + dll_name, dll)
+                list_allfiles = ftp.nlst()
+                logger.logfp.write('\nuploaded - %s: %s, %s' %(build.profile, exe_name, dll_name))
+                logger.logfp.flush()
+            except ftplib.all_errors, e:
+                logger.writeerr('\nftp failed to upload binaries\n' + str(e))
+                print "ftp failed", e
+                return
         
-        if not encoder_binary_name == 'x265':
-            continue
+            if not encoder_binary_name == 'x265':
+                continue
 
-        if folder == 'Release': # never delete tagged builds
-            continue
-        tagrevs = defaultdict(set)
-        for file in list_allfiles:
-            name, tagdist, hash = file.split('-', 2)
-            tag, dist = tagdist.split('+', 1)
-            tagrevs[tag].add(int(dist)) # { '1.6' : (100, 110, 112) }
+            if folder == 'Release': # never delete tagged builds
+                continue
+            tagrevs = defaultdict(set)
+            for file in list_allfiles:
+                name, tagdist, hash = file.split('-', 2)
+                tag, dist = tagdist.split('+', 1)
+                tagrevs[tag].add(int(dist)) # { '1.6' : (100, 110, 112) }
 
-        # Keep M last build versions for most recent N tags, and last stable
-        # build on each tag. Note that this is relying on string sorting of
-        # version numbers - '1.10' would be less than '1.9' - so it is relying
-        # on the policy to bump to version '2.0' following '1.9'
+            # Keep M last build versions for most recent N tags, and last stable
+            # build on each tag. Note that this is relying on string sorting of
+            # version numbers - '1.10' would be less than '1.9' - so it is relying
+            # on the policy to bump to version '2.0' following '1.9'
 
-        M = 8
-        N = folder == 'Stable' and 2 or 1
-        keeprevs = []
-        for tags_count, tag in enumerate(sorted(tagrevs.keys(), reverse=True)):
-            revs = ['+'.join([tag, str(rev)]) for rev in sorted(tagrevs[tag], reverse=True)]
-            if tags_count < N:
-                keeprevs.extend(revs[:M])
-            elif folder == 'Stable':
-                keeprevs.append(revs[0])
-            else:
-                break
+            M = 8
+            N = folder == 'Stable' and 2 or 1
+            keeprevs = []
+            for tags_count, tag in enumerate(sorted(tagrevs.keys(), reverse=True)):
+                revs = ['+'.join([tag, str(rev)]) for rev in sorted(tagrevs[tag], reverse=True)]
+                if tags_count < N:
+                    keeprevs.extend(revs[:M])
+                elif folder == 'Stable':
+                    keeprevs.append(revs[0])
+                else:
+                    break
 
-        for file in list_allfiles:
-            name, tagdist, hash = file.split('-', 2)
-            if tagdist not in keeprevs:
-                ftp.delete(file)
+            for file in list_allfiles:
+                name, tagdist, hash = file.split('-', 2)
+                if tagdist not in keeprevs:
+                    ftp.delete(file)
 
 # save binaries, core dump and required files to debug
 def save_coredump(tmpfolder, binary):
@@ -1340,6 +1398,8 @@ def gmake(buildfolder, generator, **opts):
         cmds = ['mingw32-make']
     else:
         cmds = ['make']
+    if hg:
+        cmds.extend(['install'])
     if my_make_flags:
         cmds.extend(my_make_flags)
 
@@ -1375,10 +1435,10 @@ def gmake(buildfolder, generator, **opts):
         p = Popen(cmds, stdout=PIPE, stderr=PIPE, cwd=buildfolder)
     errors = async_poll_process(p, False)
     os.environ['PATH'] = origpath
-    if 'MinGW' in generator and install_path_exist == True:
+    if 'MinGW' in generator and install_path_exist == True and not hg:
         cmds='mingw32-make install'
         out, error = Popen(cmds, cwd=buildfolder, stdout=PIPE, stderr=PIPE, shell=True).communicate()	
-    elif install_path_exist == True:
+    elif install_path_exist == True and not hg:
         cmds='make install'
         out, error = Popen(cmds, cwd=buildfolder, stdout=PIPE, stderr=PIPE, shell=True).communicate()
     return errors
@@ -1478,6 +1538,21 @@ def msbuild(buildkey, buildfolder, generator, cmakeopts):
                 logger.write(line.strip())
         if warnings:
             err = '\n'.join(warnings)
+
+    p = Popen([msbuild, '/clp:disableconsolecolor', target, 'INSTALL.vcxproj'],
+              stdout=PIPE, stderr=PIPE, cwd=buildfolder, env=env)
+    out, errins = async_poll_process(p, True)
+    err += '\n'.join(errins)
+    if not err:
+        warnings = []
+        for line in out.splitlines(True):
+            if 'MSBUILD : warning MSB' in line: # vc9 is a mess
+                continue
+            if 'warning' in line:
+                warnings.append(line.strip())
+                logger.write(line.strip())
+        if warnings:
+            err += '\n'.join(warnings)
     return err
 
 

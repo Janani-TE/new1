@@ -55,6 +55,7 @@ my_ftp_user = ''
 my_ftp_pass = ''
 my_ftp_folder = '' # 'Shared/HEVC/x265_Binaries'
 my_receiver_mailid = ''
+upload_install_folder = False #Set to true if wish to upload the entire install folder instead only binaries
 
 # set these variables for automation
 check_binary = ''
