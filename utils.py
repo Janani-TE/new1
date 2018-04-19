@@ -623,7 +623,10 @@ ignored_x265_warnings = (
     'multi-pass-opt-analysis/multi-pass-opt-distortion incompatible with pmode/pme, Disabling pmode/pme',
     'Turning on repeat-headers for HDR compatibility',
     ' OPENCL not enabled in cmake - encode in default x265 without offload',
-    'GOP Parallel Encoder: set min keyint = max keyint'	
+    'GOP Parallel Encoder: set min keyint = max keyint',
+    'Live2pass Encoder: setting analysis-reuse-level as 10',
+    'Live2pass Encoder: setting scale-factor as 2',
+    'Live2pass Encoder: set min keyint = max keyint'
 )
 
 
