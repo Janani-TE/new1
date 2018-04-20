@@ -1675,7 +1675,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
         cmds.append(seqfullpath)
         cmds.extend(shlex.split(command))
         cmds.extend(seq_details)
-    elif '[' in command:
+    elif '[' in command and 'split' not in command:
         command = wrapper.arrangecli(seqfullpath, command, always, extras, None, None)
         cmds.append(seqfullpath)
         cmds.extend(shlex.split(command))
