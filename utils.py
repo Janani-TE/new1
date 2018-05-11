@@ -275,12 +275,13 @@ class Build():
             cmakeopts.append('-DCMAKE_BUILD_TYPE=Release')
 
     def cmake_build(self, key, cmakeopts, buildfolder):
-        cmake_install_path = os.path.abspath(os.path.join(buildfolder, self.target, "install"))
-        cmakeopts.append('-DCMAKE_INSTALL_PREFIX=' + cmake_install_path)
+        if hg:
+            cmake_install_path = os.path.abspath(os.path.join(buildfolder, self.target, "install"))
+            cmakeopts.append('-DCMAKE_INSTALL_PREFIX=' + cmake_install_path)
+            if not os.path.exists(cmake_install_path):
+                os.makedirs(cmake_install_path)
         cout, cerr = cmake(self.gen, buildfolder, cmakeopts, **self.opts)
 
-        if not os.path.exists(cmake_install_path):
-            os.makedirs(cmake_install_path)
         empty = True
         if cerr:
             prefix = 'cmake errors reported for %s:: ' % key
