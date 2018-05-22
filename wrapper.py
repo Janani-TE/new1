@@ -32,23 +32,22 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
         final_command.extend(extras)
         final_command.append('-o')
         return final_command
-    cmd_string = str(command)
-    numStrm = cmd_string.count('}')
+    fullCommand = str(command)
+    numStrm = fullCommand.count('}')
     k=0
     commandslist = []
     final_command = always
     final_command += ' '
-    final_command += cmd_string.split('{')[0]
+    final_command += fullCommand.split('{')[0]
+    cmd_string = fullCommand.split('}')
     while k<numStrm:
         #cmd = cmd_string.split('[')[1].split(']')[0]
-        cmd = cmd_string.split('}')[0].split('{')[1];
+        cmd = cmd_string[k].split('{')[1];
         cmd_stream = cmd
         cmd = cmd.replace('[ ', '')
         cmd = cmd.replace(' ]', '')
         cmd = cmd.replace(' ;', '')
         final_command += cmd
-        if k < numStrm-1:
-            cmd_string = cmd_string.split('}')[1]
         k=k+1     
         bitrates, vbvmaxrates, vbvbufsizes, crf, crfmax, crfmin = [], [], [], [], [], []
         tchash = []
