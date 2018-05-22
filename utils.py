@@ -36,6 +36,7 @@ vbv_tolerance = .05 # fraction of bitrate difference allowed (5%)
 feature_tolerance = .10 #fraction of feature bitrate difference allowed (10%)
 abr_tolerance = .10 # fraction of abr difference allowed (10%)
 fps_tolerance = .10  # fraction of fps difference allowed (10%)
+ssim_tolerance = -.1 # difference of ssim drop allowed 
 logger = None
 buildObj = {}
 spot_checks = []
@@ -2062,24 +2063,6 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
             outputdiffCheck = True		
         elif '--vbv-bufsize' in command and '--const-vbv' not in command:	
             outputdiffCheck = True
-
-    if filecmp.cmp(golden, test):
-        # outputs matched last-known good, record no-change status for all
-        # output changing commits which were not previously accounted for
-        for oc in opencommits:
-            nc = 'no-change-%s-%s.txt' % (group, oc)
-            nochange = os.path.join(my_goldens, testhash, nc)
-            open(nochange, 'w').write(commit)
-            print 'not changed by %s,' % oc,
-
-        # if the test run which created the golden outputs used a --log-level=none
-        # spot-check or something similar, the summary will have some unknowns
-        # in it. Replace it with the current summary if it is complete
-
-        if 'N/A' in lastsum and 'N/A' not in sum:
-            print 'correcting golden output summary,',
-            open(fname, 'w').write(sum)
-            return lastfname, False
 			
     if outputdiffCheck:
         # outputs did not match but this is a VBV test case.
@@ -2095,8 +2078,15 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
             # VBV encodes are non-deterministic, check that golden output
             # bitrate is within tolerance% of new bitrate. Example summary:
             # 'bitrate: 121.95, SSIM: 20.747, PSNR: 53.359'
-            diffmsg , diff_abr, diff_fps, diff_vbv, diff_feature = ' ', 0, 0, 0, 0
+            diffmsg , diff_abr, diff_fps, diff_vbv, diff_feature, diff_ssim = ' ', 0, 0, 0, 0,0
             try:
+                #check SSIM difference with prev output - for all features
+                lastssim = float(lastsum.split('SSIM: ')[1].split(',')[0])
+                newssim = float(sum.split('SSIM: ')[1].split(',')[0])
+                diff_ssim = newssim - lastssim
+                # check only for ssim drops
+                if (diff_ssim <  ssim_tolerance):
+                    diffmsg+= 'OUTPUT SSIM DROPPED BY %.2f%' % abs(diff_ssim)
                 if checkfeature:
                     for feature in abrchecklist:
                         if feature in command:
@@ -2104,9 +2094,9 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
                             newbitrate = float(sum.split(',')[0].split(' ')[1])
                             diff_abr = abs(lastbitrate - newbitrate) / lastbitrate
                             if diff_abr > abr_tolerance:
-                                diffmsg += 'OUTPUT CHANGED BY %.2f%%' % (diff_abr * 100)
+                                diffmsg += 'OUTPUT BITRATE CHANGED BY %.2f%%' % (diff_abr * 100)
                             break
-                else:							
+                else:
                     if '--vbv-bufsize' in command:
                         lastbitrate = float(lastsum.split(',')[0].split(' ')[1])
                         newbitrate = float(sum.split(',')[0].split(' ')[1])
@@ -2118,7 +2108,7 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
                         newbitrate = float(sum.split(',')[0].split(' ')[1])
                         diff_feature = abs(lastbitrate - newbitrate) / lastbitrate
                         if diff_feature > feature_tolerance:
-                            diffmsg += '\nFEATURE BITRATE OUTPUT CHANGED BY %.2f%%' % (diff_feature * 100)
+                            diffmsg += '\nOUTPUT BITRATE CHANGED BY %.2f%%' % (diff_feature * 100)
 
                         targetfps_string = command.split(fps_check_variable)[1].split(' ')[0]
                         targetfps = float(targetfps_string)
@@ -2142,31 +2132,48 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
                 diff_feature = feature_tolerance + 1
                 diff_abr = abr_tolerance + 1
                 diff_fps = fps_tolerance + 1
-            return diff_vbv, diff_feature, diff_abr, diff_fps, diffmsg
+                diff_ssim = abs(diff_ssim) + 1
+            return diff_ssim, diff_vbv, diff_feature, diff_abr, diff_fps, diffmsg
         for oc in opencommits:
             lastfname = '%s-%s-%s' % (hgrevisiondate(oc), group, oc)
             if 'vbv' in changefilter.get(oc, '') or   'bitrate' in changefilter.get(oc, '') or 'fps' in changefilter.get(oc, ''):
                 return lastfname, None
             else:
-                diff_vbv, diff_feature, diff_abr, diff_fps, diffmsg = outputdiff()
-                if diff_vbv > vbv_tolerance or diff_feature > feature_tolerance or diff_abr > abr_tolerance or diff_fps > fps_tolerance:
+                diff_ssim, diff_vbv, diff_feature, diff_abr, diff_fps, diffmsg = outputdiff()
+                if diff_ssim < ssim_tolerance or diff_vbv > vbv_tolerance or diff_feature > feature_tolerance or diff_abr > abr_tolerance or diff_fps > fps_tolerance:
                     logger.logfp.write('\n%s\n' % diffmsg)
                     logger.write(diffmsg)
                     return lastfname, None
         else:
-            diff_vbv, diff_feature, diff_abr, diff_fps, diffmsg = outputdiff()
+            diff_ssim, diff_vbv, diff_feature, diff_abr, diff_fps, diffmsg = outputdiff()
             if 'Unable to parse bitrates for' in diffmsg:
                 diffmsg += '\nunable to read metrics So new golden outputs are storing again...\n'
                 logger.logfp.write('\n%s\n' % diffmsg)
                 logger.write(diffmsg)
                 return lastfname, None
-            if diff_vbv > vbv_tolerance or diff_feature > feature_tolerance or diff_abr > abr_tolerance or diff_fps > fps_tolerance:
+            if diff_ssim < ssim_tolerance or diff_vbv > vbv_tolerance or diff_feature > feature_tolerance or diff_abr > abr_tolerance or diff_fps > fps_tolerance:
                 return lastfname, diffmsg
-            elif diff_vbv < vbv_tolerance or diff_feature < feature_tolerance:
+            elif diff_ssim > ssim_tolerance or diff_vbv < vbv_tolerance or diff_feature < feature_tolerance:
                 return lastfname, False
     
-    if filecmp.cmp(golden, test):
-        return lastfname, False
+    else:
+	if filecmp.cmp(golden, test):
+            # outputs matched last-known good, record no-change status for all
+            # output changing commits which were not previously accounted for
+            for oc in opencommits:
+                nc = 'no-change-%s-%s.txt' % (group, oc)
+                nochange = os.path.join(my_goldens, testhash, nc)
+                open(nochange, 'w').write(commit)
+                print 'not changed by %s,' % oc,
+
+            # if the test run which created the golden outputs used a --log-level=none
+            # spot-check or something similar, the summary will have some unknowns
+            # in it. Replace it with the current summary if it is complete
+
+            if 'N/A' in lastsum and 'N/A' not in sum:
+                print 'correcting golden output summary,',
+                open(fname, 'w').write(sum)
+            return lastfname, False
 		
     # outputs do not match last good, check for a changing commit that might
     # take credit for this test case being changed
