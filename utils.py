@@ -633,12 +633,14 @@ ignored_x265_warnings = (
     'interlaced (1) > level limit (0)',
     'Disabling pme and pmode: --pme and --pmode cannot be used with SEA motion search!',
     'multi-pass-opt-analysis/multi-pass-opt-distortion incompatible with pmode/pme, Disabling pmode/pme',
-    'Turning on repeat-headers for HDR compatibility',
+    'Turning on repeat-heade-rs for HDR compatibility',
     ' OPENCL not enabled in cmake - encode in default x265 without offload',
     'GOP Parallel Encoder: set min keyint = max keyint',
     'Live2pass Encoder: setting analysis-reuse-level as 10',
     'Live2pass Encoder: setting scale-factor as 2',
-    'Live2pass Encoder: set min keyint = max keyint'
+    'Live2pass Encoder: set min keyint = max keyint',
+    'Live2pass Encoder: open gop disabled',
+    'Multiencoder: set min keyint = max keyint'
 )
 
 
@@ -1086,6 +1088,7 @@ def initspotchecks():
         '--asm=SSSE3',
         '--asm=SSE4',
         '--asm=AVX',
+        '--asm=AVX512',
         '--pme',
         '--recon=recon.yuv',
         '--recon=recon.y4m',
@@ -1114,6 +1117,7 @@ def getspotcheck(cmd):
     forbiddens = {
         '--log-level=none': ['vbv'],
         '--no-asm'  : ['veryslow', 'placebo'],
+        '--no-copy-pic' : ['pre-process']
     }
     global spot_checks
     while True:
@@ -1841,8 +1845,12 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
         el = [l for l in el if not l.startswith(('x265 [debug]:', 'x265 [full]:'))]
         logs = 'Full encoder logs without progress reports or debug/full logs:\n'
         logs += ''.join(el) + stdout
-
-        summary, errors, encoder_error_var = parsex265(tmpfolder, stdout, stderr)
+        bgops = False
+        if ('--gops' in command):
+            gops = command.split('--gops ')[1].split('x')[0]
+            if int(gops) > 1:
+                bgops = True
+        summary, errors, encoder_error_var = parsex265(tmpfolder, stdout, stderr, bgops)
         if p.returncode == -11:
             errors += 'x265 encountered SIGSEGV\n\n'
         elif p.returncode == -6:
@@ -1868,7 +1876,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
     return (logs, summary, errors, encoder_error_var)
 
 
-def parsex265(tmpfolder, stdout, stderr):
+def parsex265(tmpfolder, stdout, stderr, bgops):
     '''parse warnings and errors from stderr, summary from stdout, and look
        for leak and check failure files in the temp folder'''
     encoder_error_var = True
@@ -1883,8 +1891,8 @@ def parsex265(tmpfolder, stdout, stderr):
         if contents and 'No memory leaks detected' not in contents:
             errors += '** leaks reported:\n' + contents + '\n'
 
-    def scansummary(output):
-        ssim, psnr, bitrate = 'N/A', 'N/A', 'N/A'
+    def scansummary(output,bgops):
+        ssim, psnr, bitrate = 'N/A','N/A','N/A'
         for line in output.splitlines():
             words = line.split()
             if line.startswith('Cumulatively encoded '):
@@ -1900,7 +1908,7 @@ def parsex265(tmpfolder, stdout, stderr):
                     if psnr.endswith(','): psnr = psnr[:-1]
                 if bitrate:
                     return bitrate, ssim, psnr		
-            elif line.startswith('encoded '):
+            elif (bgops == False and line.startswith('encoded ')):
                 if hg or encoder_binary_name == 'ffmpeg':
                     if 'fps),' in words:
                         index = words.index('fps),')
@@ -1930,15 +1938,15 @@ def parsex265(tmpfolder, stdout, stderr):
                     if psnr.startswith('G'): psnr = psnr[7:]
                     bitrate = words[-1]
                     bitrate = bitrate[5:]
-                    return bitrate, ssim, psnr
+                    return bitrate, ssim, psnr 
             else:
                 continue			
         return None
 
     # parse summary from last line of stdout
-    sum = scansummary(stdout)
+    sum = scansummary(stdout,bgops)
     if sum is None:
-        sum = scansummary(stderr)
+        sum = scansummary(stderr,bgops)
     if sum:
         summary = 'bitrate: %s, SSIM: %s, PSNR: %s' % sum
     else:
@@ -2045,12 +2053,12 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
     outputdiffCheck = False
     checkfeature = False
 
-    if '--codec "x265"' in command:
-        abrchecklist = abr_check_x265
-    elif '--codec "x264"' in command:
+    if '--codec "x264"' in command:
         abrchecklist = abr_check_x264
+    else:
+        abrchecklist = abr_check_x265
     for feature in abrchecklist:
-        if feature in command:
+        if feature in command and '--no-flush-pic' not in command:
             outputdiffCheck = True
             checkfeature = True
 
