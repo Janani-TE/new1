@@ -1892,56 +1892,58 @@ def parsex265(tmpfolder, stdout, stderr, bgops):
             errors += '** leaks reported:\n' + contents + '\n'
 
     def scansummary(output,bgops):
-        ssim, psnr, bitrate = 'N/A','N/A','N/A'
+        bitrate, ssim, psnr = [], [], []
         for line in output.splitlines():
             words = line.split()
             if line.startswith('Cumulatively encoded '):
                 if 'fps),' in words:
                     index = words.index('fps),')
-                    bitrate = words[index + 1]
+                    bitrate.append(words[index + 1])
                 if 'SSIM' in words:
-                    ssim = words[-2]
-                    if ssim.startswith('('): ssim = ssim[1:]
+                    word = words[-2]
+                    if word.startswith('('): word = word[1:]
+                    ssim.append(word)
                 if 'PSNR:' in words:
                     index = words.index('PSNR:')
-                    psnr = words[index + 1]
-                    if psnr.endswith(','): psnr = psnr[:-1]
-                if bitrate:
-                    return bitrate, ssim, psnr		
+                    word = words[index + 1]
+                    if word.endswith(','): word = word[:-1]
+                    psnr.append(word)
             elif (bgops == False and line.startswith('encoded ')):
                 if hg or encoder_binary_name == 'ffmpeg':
                     if 'fps),' in words:
                         index = words.index('fps),')
-                        bitrate = words[index + 1]
+                        bitrate.append(words[index + 1])
                     if 'SSIM' in words:
-                        ssim = words[-2]
-                        if ssim.startswith('('): ssim = ssim[1:]
+                        word = words[-2]
+                        if word.startswith('('): word = word[1:]
+                        ssim.append(word)
                     if 'PSNR:' in words:
                         index = words.index('PSNR:')
-                        psnr = words[index + 1]
-                        if psnr.endswith(','): psnr = psnr[:-1]
-                    if bitrate:
-                        return bitrate, ssim, psnr
+                        word = words[index + 1]
+                        if word.endswith(','): word = word[:-1]
+                        psnr.append(word)
                 else:
                     if 'fps,' in words:
                         index = words.index('fps,')
-                        bitrate = words[index + 1]
-                    if bitrate:
-                        return bitrate, ssim, psnr
+                        bitrate.append(words[index + 1])
             elif line.startswith('x264 [info]: SSIM'):
                 if 'SSIM' in words:
-                    ssim = words[-1]
-                    if ssim.startswith('('): ssim = ssim[1:-3]
+                    word = words[-1]
+                    if word.startswith('('): word = word[1:-3]
+                    ssim.append(word)
             elif line.startswith('x264 [info]: PSNR'):
                 if 'PSNR' in words:
-                    psnr = words[-2]                    
-                    if psnr.startswith('G'): psnr = psnr[7:]
-                    bitrate = words[-1]
-                    bitrate = bitrate[5:]
-                    return bitrate, ssim, psnr 
+                    word = words[-2]                    
+                    if word.startswith('G'): word = word[7:]
+                    psnr.append(word)
+                    word = words[-1]
+                    bitrate.append(word[5:])
             else:
                 continue			
-        return None
+        if bitrate: 		
+            return bitrate, ssim, psnr
+        else:
+            return None
 
     # parse summary from last line of stdout
     sum = scansummary(stdout,bgops)
@@ -1980,7 +1982,7 @@ def parsex265(tmpfolder, stdout, stderr, bgops):
               warning_error_line not in ignored_x265_warnings):
             encoder_error_var = False
 	
-    return summary, errors, encoder_error_var
+    return sum, errors, encoder_error_var
 
 
 def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
@@ -2390,6 +2392,8 @@ def _test(build, tmpfolder, seq, command,  always, extras):
         If not, validate new bitstream with decoder then save
     '''
     global bitstream, testhashlist
+    global i
+    i = 0	
     empty = True
     testhash = testcasehash(seq, command)
     bitstream = 'bitstream.h264' if (encoder_binary_name == 'x264' or '--codec "x264"' in command or 'codec=x264' in command) else 'bitstream.hevc'
@@ -2400,6 +2404,8 @@ def _test(build, tmpfolder, seq, command,  always, extras):
         testhashlist.append(testhash)
 
     for hash in testhashlist:
+        summary = "bitrate: %s, SSIM: %s,  PSNR: %s" % (sum[0][i], sum[1][i], sum[2][i])
+        i=i+1	
         if '[' in command and ('--codec "x264"' in command or encoder_binary_name == 'x264'):
             bitstream = hash + '.h264'
         elif '[' in command:
@@ -2415,7 +2421,7 @@ def _test(build, tmpfolder, seq, command,  always, extras):
             return
 
         if encoder_binary_name != 'ffmpeg':
-            lastfname, errors = checkoutputs(build, seq, command, sum, tmpfolder, logs, hash)
+            lastfname, errors = checkoutputs(build, seq, command, summary, tmpfolder, logs, hash)
             fname = os.path.join(my_goldens, hash, lastfname, 'summary.txt')
 
             # check against last known good outputs - lastfname is the folder
@@ -2432,17 +2438,17 @@ def _test(build, tmpfolder, seq, command,  always, extras):
                     logger.testfail('Decoder validation failed', decodeerr, logs)
                     if os.path.exists(fname):
                         lastsum = open(fname, 'r').read()
-                        table('Decoder validation failed', sum , lastsum, logger.build.strip('\n'))
+                        table('Decoder validation failed', summary , lastsum, logger.build.strip('\n'))
                     else:
                         table('Decoder validation failed', empty , empty, logger.build.strip('\n'))
                 else:
-                    logger.write('Decoder validation ok:', sum)
+                    logger.write('Decoder validation ok:', summary)
                     if errors is False:
                         # outputs matched golden outputs
                         addpass(hash, lastfname, logs)
                         logger.write('PASS')
                     else:
-                        newgoldenoutputs(seq, command, lastfname, sum, logs, tmpfolder, hash)
+                        newgoldenoutputs(seq, command, lastfname, summary, logs, tmpfolder, hash)
             elif errors:
                 typeoferror = ''
                 # outputs did not match golden outputs
@@ -2455,7 +2461,7 @@ def _test(build, tmpfolder, seq, command,  always, extras):
                     failuretype = '%s output change with decode errors ' % typeoferror
                     if os.path.exists(fname):
                         lastsum = open(fname, 'r').read()
-                        table(failuretype, sum , lastsum, logger.build.strip('\n'))
+                        table(failuretype, summary , lastsum, logger.build.strip('\n'))
                     else:
                         table(failuretype, empty , empty, logger.build.strip('\n'))
                 else:
@@ -2463,20 +2469,20 @@ def _test(build, tmpfolder, seq, command,  always, extras):
                     if 'FPS TARGET MISSED' in errors:
                         if os.path.exists(fname):
                             lastsum = open(fname, 'r').read()
-                            prefix = '%s FPS TARGET MISSED: <%s> to <%s>' % (typeoferror, lastsum, sum)
+                            prefix = '%s FPS TARGET MISSED: <%s> to <%s>' % (typeoferror, lastsum, summary)
                         else:
                             prefix = '%s FPS TARGET MISSED:' % (typeoferror)
                         failuretype = '%s fps target missed' % typeoferror
                     else:
                         if os.path.exists(fname):
                             lastsum = open(fname, 'r').read()
-                            prefix = '%s OUTPUT CHANGE: <%s> to <%s>' % (typeoferror, lastsum, sum)
+                            prefix = '%s OUTPUT CHANGE: <%s> to <%s>' % (typeoferror, lastsum, summary)
                         else:
                             prefix = '%s OUTPUT CHANGE:' % (typeoferror)
                         failuretype = '%s output change' % typeoferror
                     if os.path.exists(fname):
                         lastsum = open(fname, 'r').read()
-                        table(failuretype, sum , lastsum, logger.build.strip('\n'))
+                        table(failuretype, summary , lastsum, logger.build.strip('\n'))
                     else:
                         table(failuretype, empty , empty, logger.build.strip('\n'))
                     if save_changed:
