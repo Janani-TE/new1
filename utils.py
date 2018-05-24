@@ -2096,7 +2096,7 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
                 diff_ssim = newssim - lastssim
                 # check only for ssim drops
                 if (diff_ssim <  ssim_tolerance):
-                    diffmsg+= 'OUTPUT SSIM DROPPED BY %.2f%' % abs(diff_ssim)
+                    diffmsg+= 'OUTPUT SSIM DROPPED BY %.2f%%' % abs(diff_ssim)
                 if checkfeature:
                     for feature in abrchecklist:
                         if feature in command:
