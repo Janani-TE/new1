@@ -1901,7 +1901,8 @@ def parsex265(tmpfolder, stdout, stderr, bgops):
                     bitrate.append(words[index + 1])
                 if 'SSIM' in words:
                     word = words[-2]
-                    if word.startswith('('): word = word[1:]
+                    if word.startswith('('): word = word[1:-1]
+                    else: word = word[:-1]
                     ssim.append(word)
                 if 'PSNR:' in words:
                     index = words.index('PSNR:')
@@ -1916,6 +1917,7 @@ def parsex265(tmpfolder, stdout, stderr, bgops):
                     if 'SSIM' in words:
                         word = words[-2]
                         if word.startswith('('): word = word[1:]
+                        else: word = word[:-1]
                         ssim.append(word)
                     if 'PSNR:' in words:
                         index = words.index('PSNR:')
@@ -2190,7 +2192,7 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
     unfiltered = None
     for oc in opencommits:
         if oc in changefilter:
-            if [True for m in changefilter[oc] if m in command]:
+            if [True for m in changefilter[oc] if (m in command or (m == 'x265' and 'x264' not in command))]:                
                 print 'commit %s takes credit for this change' % oc
                 revdate = hgrevisiondate(oc)
                 lastfname = '%s-%s-%s' % (revdate, group, oc)
