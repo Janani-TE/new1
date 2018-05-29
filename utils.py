@@ -633,14 +633,15 @@ ignored_x265_warnings = (
     'interlaced (1) > level limit (0)',
     'Disabling pme and pmode: --pme and --pmode cannot be used with SEA motion search!',
     'multi-pass-opt-analysis/multi-pass-opt-distortion incompatible with pmode/pme, Disabling pmode/pme',
-    'Turning on repeat-heade-rs for HDR compatibility',
+    'Turning on repeat-headers for HDR compatibility',
     ' OPENCL not enabled in cmake - encode in default x265 without offload',
     'GOP Parallel Encoder: set min keyint = max keyint',
     'Live2pass Encoder: setting analysis-reuse-level as 10',
     'Live2pass Encoder: setting scale-factor as 2',
     'Live2pass Encoder: set min keyint = max keyint',
     'Live2pass Encoder: open gop disabled',
-    'Multiencoder: set min keyint = max keyint'
+    'Multiencoder: set min keyint = max keyint',
+    'AVX512 is not supported'
 )
 
 
