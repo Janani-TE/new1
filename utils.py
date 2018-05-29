@@ -1709,7 +1709,7 @@ def testharness():
             logger.writeerr(prefix + err)
 
 
-def encodeharness(key, tmpfolder, sequence, command, always, inextras):
+def encodeharness(key, tmpfolder, sequence, command, always, inextras, testhash):
     '''
     Perform a single test encode within a tempfolder
      * key      is the shortname for the build to use, ex: 'gcc'
@@ -1850,7 +1850,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
             gops = command.split('--gops ')[1].split('x')[0]
             if int(gops) > 1:
                 bgops = True
-        summary, errors, encoder_error_var = parsex265(tmpfolder, stdout, stderr, bgops)
+        summary, errors, encoder_error_var = parsex265(tmpfolder, stdout, stderr, bgops, testhash)
         if p.returncode == -11:
             errors += 'x265 encountered SIGSEGV\n\n'
         elif p.returncode == -6:
@@ -1876,7 +1876,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
     return (logs, summary, errors, encoder_error_var)
 
 
-def parsex265(tmpfolder, stdout, stderr, bgops):
+def parsex265(tmpfolder, stdout, stderr, bgops, testhash):
     '''parse warnings and errors from stderr, summary from stdout, and look
        for leak and check failure files in the temp folder'''
     encoder_error_var = True
@@ -1951,10 +1951,11 @@ def parsex265(tmpfolder, stdout, stderr, bgops):
     sum = scansummary(stdout,bgops)
     if sum is None:
         sum = scansummary(stderr,bgops)
-    if sum:
-        summary = 'bitrate: %s, SSIM: %s, PSNR: %s' % sum
-    else:
-        summary = 'bitrate: N/A, SSIM: N/A, PSNR: N/A'
+    if sum is None:
+        summary = []
+        for hash in testhash:
+            summary.append('N/A')
+        sum = summary, summary, summary
 
     # check for warnings and errors in x265 logs, report together with most
     # recent progress report if there was any
@@ -2401,7 +2402,7 @@ def _test(build, tmpfolder, seq, command,  always, extras):
     bitstream = 'bitstream.h264' if (encoder_binary_name == 'x264' or '--codec "x264"' in command or 'codec=x264' in command) else 'bitstream.hevc'
     testhashlist = []
     # run the encoder, abort early if any errors encountered
-    logs, sum, encoder_errors, encoder_error_var = encodeharness(build, tmpfolder, seq, command,  always, extras)
+    logs, sum, encoder_errors, encoder_error_var = encodeharness(build, tmpfolder, seq, command,  always, extras, testhash)
     if not testhashlist:
         testhashlist.append(testhash)
 
