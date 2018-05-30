@@ -1710,7 +1710,7 @@ def testharness():
             logger.writeerr(prefix + err)
 
 
-def encodeharness(key, tmpfolder, sequence, command, always, inextras, testhash):
+def encodeharness(key, tmpfolder, sequence, command, always, inextras):
     '''
     Perform a single test encode within a tempfolder
      * key      is the shortname for the build to use, ex: 'gcc'
@@ -1851,7 +1851,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras, testhash)
             gops = command.split('--gops ')[1].split('x')[0]
             if int(gops) > 1:
                 bgops = True
-        summary, errors, encoder_error_var = parsex265(tmpfolder, stdout, stderr, bgops, testhash)
+        summary, errors, encoder_error_var = parsex265(tmpfolder, stdout, stderr, bgops)
         if p.returncode == -11:
             errors += 'x265 encountered SIGSEGV\n\n'
         elif p.returncode == -6:
@@ -1877,7 +1877,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras, testhash)
     return (logs, summary, errors, encoder_error_var)
 
 
-def parsex265(tmpfolder, stdout, stderr, bgops, testhash):
+def parsex265(tmpfolder, stdout, stderr, bgops):
     '''parse warnings and errors from stderr, summary from stdout, and look
        for leak and check failure files in the temp folder'''
     encoder_error_var = True
@@ -1893,70 +1893,80 @@ def parsex265(tmpfolder, stdout, stderr, bgops, testhash):
             errors += '** leaks reported:\n' + contents + '\n'
 
     def scansummary(output,bgops):
-        bitrate, ssim, psnr = [], [], []
+	bitrate, ssim, psnr = [], [], []
+        if not testhashlist:
+            hash_count = 1
+        else:
+            hash_count = len(testhashlist)
+        bitrate = ['N/A'] * hash_count
+        ssim = ['N/A'] * hash_count		
+        psnr = ['N/A'] * hash_count
+
+        i=0
+		
         for line in output.splitlines():
             words = line.split()
             if line.startswith('Cumulatively encoded '):
                 if 'fps),' in words:
                     index = words.index('fps),')
-                    bitrate.append(words[index + 1])
+                    bitrate[i] = words[index + 1]
                 if 'SSIM' in words:
                     word = words[-2]
                     if word.startswith('('): word = word[1:-1]
                     else: word = word[:-1]
-                    ssim.append(word)
+                    ssim[i] = word
                 if 'PSNR:' in words:
                     index = words.index('PSNR:')
                     word = words[index + 1]
                     if word.endswith(','): word = word[:-1]
-                    psnr.append(word)
+                    psnr[i] = word
+                i=i+1					
             elif (bgops == False and line.startswith('encoded ')):
                 if hg or encoder_binary_name == 'ffmpeg':
                     if 'fps),' in words:
                         index = words.index('fps),')
-                        bitrate.append(words[index + 1])
+                        bitrate[i] = words[index + 1]
                     if 'SSIM' in words:
                         word = words[-2]
                         if word.startswith('('): word = word[1:]
                         else: word = word[:-1]
-                        ssim.append(word)
+                        ssim[i] = word
                     if 'PSNR:' in words:
                         index = words.index('PSNR:')
                         word = words[index + 1]
                         if word.endswith(','): word = word[:-1]
-                        psnr.append(word)
+                        psnr[i] = word
+                    i = i+1						
                 else:
                     if 'fps,' in words:
                         index = words.index('fps,')
-                        bitrate.append(words[index + 1])
+                        bitrate[i] = words[index + 1]
+                    i = i+1						
             elif line.startswith('x264 [info]: SSIM'):
                 if 'SSIM' in words:
                     word = words[-1]
                     if word.startswith('('): word = word[1:-3]
-                    ssim.append(word)
+                    ssim[i] = word
             elif line.startswith('x264 [info]: PSNR'):
                 if 'PSNR' in words:
                     word = words[-2]                    
                     if word.startswith('G'): word = word[7:]
-                    psnr.append(word)
+                    psnr[i] = word
                     word = words[-1]
-                    bitrate.append(word[5:])
+                    bitrate[i] = word[5:]
+                i = i+1					
             else:
                 continue			
-        if bitrate: 		
-            return bitrate, ssim, psnr
-        else:
+        
+        if not output:
             return None
+        return bitrate, ssim, psnr        
 
+	
     # parse summary from last line of stdout
     sum = scansummary(stdout,bgops)
     if sum is None:
         sum = scansummary(stderr,bgops)
-    if sum is None:
-        summary = []
-        for hash in testhash:
-            summary.append('N/A')
-        sum = summary, summary, summary
 
     # check for warnings and errors in x265 logs, report together with most
     # recent progress report if there was any
@@ -2403,7 +2413,7 @@ def _test(build, tmpfolder, seq, command,  always, extras):
     bitstream = 'bitstream.h264' if (encoder_binary_name == 'x264' or '--codec "x264"' in command or 'codec=x264' in command) else 'bitstream.hevc'
     testhashlist = []
     # run the encoder, abort early if any errors encountered
-    logs, sum, encoder_errors, encoder_error_var = encodeharness(build, tmpfolder, seq, command,  always, extras, testhash)
+    logs, sum, encoder_errors, encoder_error_var = encodeharness(build, tmpfolder, seq, command,  always, extras)
     if not testhashlist:
         testhashlist.append(testhash)
 
