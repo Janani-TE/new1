@@ -1549,7 +1549,7 @@ def msbuild(buildkey, buildfolder, generator, cmakeopts):
     p = Popen([msbuild, '/clp:disableconsolecolor', target, 'INSTALL.vcxproj'],
               stdout=PIPE, stderr=PIPE, cwd=buildfolder, env=env)
     out, errins = async_poll_process(p, True)
-    err += '\n'.join(errins)
+    err += ''.join(errins)
     if not err:
         warnings = []
         for line in out.splitlines(True):
