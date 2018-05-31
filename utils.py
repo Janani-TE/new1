@@ -1851,7 +1851,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
             gops = command.split('--gops ')[1].split('x')[0]
             if int(gops) > 1:
                 bgops = True
-        summary, errors, encoder_error_var = parsex265(tmpfolder, stdout, stderr, bgops)
+        summary, errors, encoder_error_var = parsex265(tmpfolder, stdout, stderr, bgops, command)
         if p.returncode == -11:
             errors += 'x265 encountered SIGSEGV\n\n'
         elif p.returncode == -6:
@@ -1877,7 +1877,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
     return (logs, summary, errors, encoder_error_var)
 
 
-def parsex265(tmpfolder, stdout, stderr, bgops):
+def parsex265(tmpfolder, stdout, stderr, bgops, command):
     '''parse warnings and errors from stderr, summary from stdout, and look
        for leak and check failure files in the temp folder'''
     encoder_error_var = True
@@ -1892,7 +1892,7 @@ def parsex265(tmpfolder, stdout, stderr, bgops):
         if contents and 'No memory leaks detected' not in contents:
             errors += '** leaks reported:\n' + contents + '\n'
 
-    def scansummary(output,bgops):
+    def scansummary(output,bgops,command):
 	bitrate, ssim, psnr = [], [], []
         if not testhashlist:
             hash_count = 1
@@ -1922,6 +1922,8 @@ def parsex265(tmpfolder, stdout, stderr, bgops):
                     psnr[i] = word
                 i=i+1					
             elif (bgops == False and line.startswith('encoded ')):
+                if ('live2pass' in command):
+                    i=0				
                 if hg or encoder_binary_name == 'ffmpeg':
                     if 'fps),' in words:
                         index = words.index('fps),')
@@ -1964,9 +1966,9 @@ def parsex265(tmpfolder, stdout, stderr, bgops):
 
 	
     # parse summary from last line of stdout
-    sum = scansummary(stdout,bgops)
+    sum = scansummary(stdout,bgops,command)
     if sum is None:
-        sum = scansummary(stderr,bgops)
+        sum = scansummary(stderr,bgops,command)
 
     # check for warnings and errors in x265 logs, report together with most
     # recent progress report if there was any
