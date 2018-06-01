@@ -2017,6 +2017,8 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
             save = os.path.join(cwd,bitstream)
             load = os.path.join(tmpdir,bitstream)
             comparingoutput= filecmp.cmp(save,load)
+            if 'vbv-bufsize' in command:
+                comparingoutput = True
             if comparingoutput == True:
                 print 'no difference'
             else:
