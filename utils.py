@@ -1964,11 +1964,12 @@ def parsex265(tmpfolder, stdout, stderr, bgops, command):
             return None
         return bitrate, ssim, psnr        
 
-	
-    # parse summary from last line of stdout
-    sum = scansummary(stdout,bgops,command)
-    if sum is None:
-        sum = scansummary(stderr,bgops,command)
+    sum=''		
+    if encoder_binary_name != 'ffmpeg':
+        # parse summary from last line of stdout
+        sum = scansummary(stdout,bgops,command)
+        if sum is None:
+            sum = scansummary(stderr,bgops,command)
 
     # check for warnings and errors in x265 logs, report together with most
     # recent progress report if there was any
@@ -2422,8 +2423,6 @@ def _test(build, tmpfolder, seq, command,  always, extras):
         testhashlist.append(testhash)
 
     for hash in testhashlist:
-        summary = "bitrate: %s, SSIM: %s,  PSNR: %s" % (sum[0][i], sum[1][i], sum[2][i])
-        i=i+1	
         if '[' in command and ('--codec "x264"' in command or encoder_binary_name == 'x264'):
             bitstream = hash + '.h264'
         elif '[' in command:
@@ -2439,6 +2438,8 @@ def _test(build, tmpfolder, seq, command,  always, extras):
             return
 
         if encoder_binary_name != 'ffmpeg':
+            summary = "bitrate: %s, SSIM: %s,  PSNR: %s" % (sum[0][i], sum[1][i], sum[2][i])
+            i=i+1	
             lastfname, errors = checkoutputs(build, seq, command, summary, tmpfolder, logs, hash)
             fname = os.path.join(my_goldens, hash, lastfname, 'summary.txt')
 
