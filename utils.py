@@ -40,6 +40,7 @@ ssim_tolerance = -.1 # difference of ssim drop allowed
 logger = None
 buildObj = {}
 spot_checks = []
+missing = set()
 
 
 try:
@@ -1037,7 +1038,6 @@ def parseY4MHeader(fname):
 
 def parsetestfile(key, separate_command_file):
     global test_file, test_file_32bit, vbv_tolerance, feature_tolerance
-    missing = set()
     tests = []
     file = ''
 	
@@ -1066,6 +1066,11 @@ def parsetestfile(key, separate_command_file):
 
         if not os.path.exists(os.path.join(my_sequences, seq)):
             if seq not in missing:
+                errors = '%s, %s'% (seq, command)
+                logger.test = seq
+                logger.tablecommand = '%s %s'% (seq, command)
+                table(' Sequence missing', 'missingseq' , True, logger.build.strip('\n'))
+                logger.testfail(' Input sequence missing.\n', errors, '')
                 logger.write('Ignoring missing sequence', seq)
                 missing.add(seq)
             continue
@@ -2382,6 +2387,9 @@ def table(failuretype, sum , lastsum, build_info):
                                         var_empty,
                                         var_empty,
                                         var_empty))
+    elif (sum == "missingseq"):
+        logger.table.append(r'<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td><td>{4}</td><td>{5}</td><td>{6}</td><td>{7}</td><td>{8}</td><td>{9}</td><td>{10}</td></tr>'\
+                                .format(failuretype, logger.tablecommand, var_empty, var_empty, var_empty, var_empty, var_empty, var_empty, var_empty, var_empty, var_empty))
         
     else:
         logger.tableprevvalue = lastsum            
