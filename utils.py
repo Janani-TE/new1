@@ -1856,7 +1856,7 @@ def encodeharness(key, tmpfolder, sequence, command, always, inextras):
             gops = command.split('--gops ')[1].split('x')[0]
             if int(gops) > 1:
                 bgops = True
-        summary, errors, encoder_error_var = parsex265(tmpfolder, stdout, stderr, bgops, command)
+        summary, errors, encoder_error_var = parsex265(tmpfolder, logs, stderr, bgops, command)
         if p.returncode == -11:
             errors += 'x265 encountered SIGSEGV\n\n'
         elif p.returncode == -6:
@@ -1952,7 +1952,8 @@ def parsex265(tmpfolder, stdout, stderr, bgops, command):
             elif line.startswith('x264 [info]: SSIM'):
                 if 'SSIM' in words:
                     word = words[-1]
-                    if word.startswith('('): word = word[1:-3]
+                    if word.startswith('('): word = word.split('(')[1].split('db)')[0]
+                    else: word = word.split('db)')[0]
                     ssim[i] = word
             elif line.startswith('x264 [info]: PSNR'):
                 if 'PSNR' in words:
