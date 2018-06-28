@@ -81,8 +81,13 @@ try:
                 extras = ['--psnr', '--ssim']
             utils.runtest(build, seq, command, always, extras)
 
-    # send results to mail
-    logger.email_results()
+    if logger.errors:
+        # send results to mail
+        logger.email_results()
+        sys.exit(1)
+    else:
+        # send results to mail
+        logger.email_results()
     # rebuild without debug options and upload binaries on egnyte
     logs = open(os.path.join(utils.encoder_binary_name, logger.logfname),'r')
     fatalerror = False
@@ -100,8 +105,12 @@ try:
             buildoption.append(v[4])
             my_upload[key] = tuple(buildoption)
         utils.buildall(None, my_upload)
+        if logger.errors:
+            sys.exit(1)
         utils.upload_binaries()
-
+        if logger.errors:
+            sys.exit(1)
+            
         # here it applies specific patch and shares libraries
         if csv_feature == True:
             cmd = ''.join(["hg import ", my_patchlocation])

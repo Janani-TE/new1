@@ -90,11 +90,14 @@ try:
                 utils.runtest(key, seq, command, alwaysforx264, extras)
             else:
                 utils.runtest(key, seq, command, always, extras)          		
-	
-    # send results to mail
-    logger.email_results()
-
-
+    if logger.errors:
+        # send results to mail
+        logger.email_results()
+        sys.exit(1)
+    else:
+        # send results to mail
+        logger.email_results()
+       
     # rebuild without debug options and upload binaries on egnyte
     logs = open(os.path.join(utils.encoder_binary_name, logger.logfname),'r')
     fatalerror = False
@@ -113,10 +116,16 @@ try:
             buildoption.append(v[3].replace('debug', '').replace('checked', '').replace('tests', '').replace('warn', '').replace('reldeb', '').replace('noasm','').replace('static',''))
             buildoption.append(v[4])
             my_upload[key] = tuple(buildoption)
-        utils.buildall(None, my_upload)
+        utils.buildall(None, my_upload)    
+        if logger.errors:
+            sys.exit(1)
         utils.upload_binaries()
-        logger.email_results(my_receiver_mailid, 'Regular binaries upload')
-
+        if logger.errors:
+            logger.email_results(my_receiver_mailid, 'Regular binaries upload')
+            sys.exit(1)
+        else: 
+            logger.email_results(my_receiver_mailid, 'Regular binaries upload')
+            
         # here it applies specific patch and shares libraries
         if csv_feature == True:
             out, err = Popen(['hg', 'import', my_patchlocation], cwd=my_x265_source, stdout=PIPE, stderr=PIPE).communicate()
