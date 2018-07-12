@@ -2456,10 +2456,16 @@ def _test(build, tmpfolder, seq, command,  always, extras):
             # containing the last known good outputs (or for the new ones to be
             # created)
 
+            skipDecodeValidation=False
+            if ('pcs' in command):
+                skipDecodeValidation = True
+                decodeerr = False
+                logger.write('Skipping decoder validation for PCS')
             if errors is None or errors is False:
-                # no golden outputs for this test yet
-                logger.write('validating with decoder')
-                decodeerr = checkdecoder(tmpfolder, command)
+                if skipDecodeValidation is False:
+                    # no golden outputs for this test yet
+                    logger.write('validating with decoder')
+                    decodeerr = checkdecoder(tmpfolder, command)
                 if decodeerr:
                     hashfname = savebadstream(tmpfolder)
                     decodeerr += '\nThis bitstream was saved to %s' % hashfname
@@ -2470,7 +2476,8 @@ def _test(build, tmpfolder, seq, command,  always, extras):
                     else:
                         table('Decoder validation failed', empty , empty, logger.build.strip('\n'))
                 else:
-                    logger.write('Decoder validation ok:', summary)
+                    if skipDecodeValidation is False:
+                        logger.write('Decoder validation ok:', summary)
                     if errors is False:
                         # outputs matched golden outputs
                         addpass(hash, lastfname, logs)
@@ -2480,7 +2487,8 @@ def _test(build, tmpfolder, seq, command,  always, extras):
             elif errors:
                 typeoferror = ''
                 # outputs did not match golden outputs
-                decodeerr = checkdecoder(tmpfolder, command)
+                if skipDecodeValidation is False:
+                    decodeerr = checkdecoder(tmpfolder, command)
                 if decodeerr:
                     prefix = '%s OUTPUT CHANGE WITH DECODE ERRORS' % typeoferror
                     hashfname = savebadstream(tmpfolder)
