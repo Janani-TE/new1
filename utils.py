@@ -37,6 +37,7 @@ feature_tolerance = .10 #fraction of feature bitrate difference allowed (10%)
 abr_tolerance = .10 # fraction of abr difference allowed (10%)
 fps_tolerance = .10  # fraction of fps difference allowed (10%)
 ssim_tolerance = -.1 # difference of ssim drop allowed 
+feature_ssim_tolerance = -.3 # difference of feature ssim drop allowed
 logger = None
 buildObj = {}
 spot_checks = []
@@ -2107,6 +2108,10 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
         if 'N/A' in lastsum and 'N/A' not in sum:
             logger.write('saving new outputs with valid summary:', sum)
             return lastfname, None
+        if (fps_check_variable and (fps_check_variable in command)):
+            ssim_tol = feature_ssim_tolerance
+        else:
+            ssim_tol = ssim_tolerance
 
         def outputdiff():
             # golden outputs might have used --log-level=none, recover from this
@@ -2120,7 +2125,7 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
                 newssim = float(sum.split('SSIM: ')[1].split(',')[0])
                 diff_ssim = newssim - lastssim
                 # check only for ssim drops
-                if (diff_ssim <  ssim_tolerance):
+                if (diff_ssim <  ssim_tol):
                     diffmsg+= 'OUTPUT SSIM DROPPED BY %.2f%%' % abs(diff_ssim)
                 if checkfeature:
                     for feature in abrchecklist:
@@ -2175,7 +2180,7 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
                 return lastfname, None
             else:
                 diff_ssim, diff_vbv, diff_feature, diff_abr, diff_fps, diffmsg = outputdiff()
-                if diff_ssim < ssim_tolerance or diff_vbv > vbv_tolerance or diff_feature > feature_tolerance or diff_abr > abr_tolerance or diff_fps > fps_tolerance:
+                if diff_ssim < ssim_tol or diff_vbv > vbv_tolerance or diff_feature > feature_tolerance or diff_abr > abr_tolerance or diff_fps > fps_tolerance:
                     logger.logfp.write('\n%s\n' % diffmsg)
                     logger.write(diffmsg)
                     return lastfname, None
@@ -2186,9 +2191,9 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
                 logger.logfp.write('\n%s\n' % diffmsg)
                 logger.write(diffmsg)
                 return lastfname, None
-            if diff_ssim < ssim_tolerance or diff_vbv > vbv_tolerance or diff_feature > feature_tolerance or diff_abr > abr_tolerance or diff_fps > fps_tolerance:
+            if diff_ssim < ssim_tol or diff_vbv > vbv_tolerance or diff_feature > feature_tolerance or diff_abr > abr_tolerance or diff_fps > fps_tolerance:
                 return lastfname, diffmsg
-            elif diff_ssim > ssim_tolerance or diff_vbv < vbv_tolerance or diff_feature < feature_tolerance:
+            elif diff_ssim > ssim_tol or diff_vbv < vbv_tolerance or diff_feature < feature_tolerance:
                 return lastfname, False
     
     else:
