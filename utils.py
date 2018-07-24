@@ -33,7 +33,7 @@ changers = None      # list of all output changing commits which are ancestors
                      # of the revision under test
 changefilter = {}
 vbv_tolerance = .05 # fraction of bitrate difference allowed (5%)
-feature_tolerance = .10 #fraction of feature bitrate difference allowed (10%)
+feature_tolerance = .15 #fraction of feature bitrate difference allowed (15%)
 abr_tolerance = .10 # fraction of abr difference allowed (10%)
 fps_tolerance = .10  # fraction of fps difference allowed (10%)
 ssim_tolerance = -.1 # difference of ssim drop allowed 
@@ -2124,28 +2124,24 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
                 lastssim = float(lastsum.split('SSIM: ')[1].split(',')[0])
                 newssim = float(sum.split('SSIM: ')[1].split(',')[0])
                 diff_ssim = newssim - lastssim
+                lastbitrate = float(lastsum.split('bitrate: ')[1].split(',')[0])
+                newbitrate = float(sum.split(',')[0].split(' ')[1])
                 # check only for ssim drops
                 if (diff_ssim <  ssim_tol):
                     diffmsg+= 'OUTPUT SSIM DROPPED BY %.2f%%' % abs(diff_ssim)
                 if checkfeature:
                     for feature in abrchecklist:
                         if feature in command:
-                            lastbitrate = float(lastsum.split('bitrate: ')[1].split(',')[0])
-                            newbitrate = float(sum.split(',')[0].split(' ')[1])
                             diff_abr = abs(lastbitrate - newbitrate) / lastbitrate
                             if diff_abr > abr_tolerance:
                                 diffmsg += 'OUTPUT BITRATE CHANGED BY %.2f%%' % (diff_abr * 100)
                             break
                 else:
                     if '--vbv-bufsize' in command:
-                        lastbitrate = float(lastsum.split(',')[0].split(' ')[1])
-                        newbitrate = float(sum.split(',')[0].split(' ')[1])
                         diff_vbv = abs(lastbitrate - newbitrate) / lastbitrate
                         if diff_vbv > vbv_tolerance:
                             diffmsg += 'VBV OUTPUT CHANGED BY %.2f%%' % (diff_vbv * 100)
                     elif (fps_check_variable and (fps_check_variable in command)):
-                        lastbitrate = float(lastsum.split(',')[0].split(' ')[1])
-                        newbitrate = float(sum.split(',')[0].split(' ')[1])
                         diff_feature = abs(lastbitrate - newbitrate) / lastbitrate
                         if diff_feature > feature_tolerance:
                             diffmsg += '\nOUTPUT BITRATE CHANGED BY %.2f%%' % (diff_feature * 100)
