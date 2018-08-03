@@ -75,6 +75,10 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
                 crfmin.append(l)
             cmd = cmd.replace('--crf-min ', '')
             cmd = cmd.replace(list, '')
+        if '--crf' not in cmd_stream and '--bitrate' not in cmd_stream:
+            testhash = utils.testcasehash(seq, command)
+            tchash.append(testhash)
+            utils.testhashlist.append(testhash)
         if '--bitrate' in cmd_stream:
             list = cmd_stream.split('--bitrate ')[1].split(' ')[0]
             for l in list.split (','):
