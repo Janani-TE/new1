@@ -18,6 +18,7 @@
 # 2) not required [sao], [weightp], [cutree] etc.., because these are
 # already set in presets so golden outputs will store for that preset.
 
+3e4a04174270 [dynamic-refine] dynamic-refine: fix memory reset size
 18eaffdd3638 [dhdr10-info] Fix HDR10+ LLC JSON support
 1fafca24a399 [vbv] Use maximum frame size calculation of access unit 0 for all the key frames
 b9f5b5d7bf95 Set IDR's NAL type to NAL_UNIT_CODED_SLICE_IDR_N_LP if it does not have 
