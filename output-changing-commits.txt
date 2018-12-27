@@ -18,6 +18,7 @@
 # 2) not required [sao], [weightp], [cutree] etc.., because these are
 # already set in presets so golden outputs will store for that preset.
 
+b14834a9d1c1 aq: change default AQ mode to auto-variance
 3023bd8b05c0 [analysis-save,analysis-load] Cutree offset for analysis reuse
 3e4a04174270 [dynamic-refine] dynamic-refine: fix memory reset size
 18eaffdd3638 [dhdr10-info] Fix HDR10+ LLC JSON support
