@@ -1450,6 +1450,8 @@ def gmake(buildfolder, generator, **opts):
                         return 0				
         return errors
     else:
+        if osname == 'Darwin' and os.listdir(buildfolder):
+            p = Popen(['make', 'uninstall'], stdout=PIPE, stderr=PIPE, cwd=buildfolder)
         p = Popen(cmds, stdout=PIPE, stderr=PIPE, cwd=buildfolder)
     errors = async_poll_process(p, False)
     os.environ['PATH'] = origpath
