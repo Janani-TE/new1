@@ -12,7 +12,10 @@ from subprocess import Popen, PIPE
 import utils
 
 # setup will call sys.exit() if it determines the tests are unable to continue
-utils.setup(sys.argv, 'regression-tests.txt', '', False)
+if "--save-load-tests" in sys.argv:
+    utils.setup(sys.argv, 'save-load-tests.txt', '', False)
+else:
+    utils.setup(sys.argv, 'regression-tests.txt', '', False)
 
 from conf import my_builds, my_machine_name, my_sequences, my_x265_source
 from utils import logger, find_executable

@@ -518,7 +518,7 @@ def setup(argv, preferredlist, preferredlist_32bit, separate_command_file):
 
     import getopt
     longopts = ['builds=', 'help', 'no-make', 'no-bench', 'only=', 'rebuild',
-                'save-changed', 'skip=', 'tests=']
+                'save-changed', 'skip=', 'tests=', 'save-load-test']
     optlist, args = getopt.getopt(argv[1:], 'hb:t:', longopts)
     for opt, val in optlist:
         # restrict the list of target builds to just those specified by -b
@@ -542,6 +542,10 @@ def setup(argv, preferredlist, preferredlist_32bit, separate_command_file):
             run_bench = False
         elif opt == '--rebuild':
             rebuild = True
+        elif opt == "--save-load-test":
+            if argv[0] != "regression-test.py":
+                print '\n --save-load-test supported only with regression-test.py'
+                sys.exit(1)
         elif opt in ('-h', '--help'):
             print sys.argv[0], '[OPTIONS]\n'
             print '\t-h/--help            show this help'
