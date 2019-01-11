@@ -647,7 +647,8 @@ ignored_x265_warnings = (
     'Live2pass Encoder: set min keyint = max keyint',
     'Live2pass Encoder: open gop disabled',
     'Multiencoder: set min keyint = max keyint',
-    'AVX512 is not supported'
+    'AVX512 is not supported',
+    'hevc-aq enabled, disabling other aq-modes'
 )
 
 
