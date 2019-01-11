@@ -12,7 +12,7 @@ from subprocess import Popen, PIPE
 import utils
 
 # setup will call sys.exit() if it determines the tests are unable to continue
-if "--save-load-tests" in sys.argv:
+if "--save-load-test" in sys.argv:
     utils.setup(sys.argv, 'save-load-tests.txt', '', False)
 else:
     utils.setup(sys.argv, 'regression-tests.txt', '', False)
