@@ -2019,7 +2019,7 @@ def checkoutputs(key, seq, command, sum, tmpdir, logs, testhash):
     group = my_builds[key][1]
     # Analysis save/load comparison once encoder success.If encoder crash exist it will not compare the output files.
     cwd = os.getcwd()
-    if os.path.isfile(os.path.join(tmpdir,bitstream)) and mulres == 0:
+    if os.path.isfile(os.path.join(tmpdir,bitstream)) and mulres == 0 and 'refine-ctu-distortion' not in command:
         if 'analysis-save' in command:
             savesummary = sum
             open('savesummary.txt', 'w').write(savesummary)
