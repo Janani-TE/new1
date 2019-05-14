@@ -648,7 +648,8 @@ ignored_x265_warnings = (
     'Live2pass Encoder: open gop disabled',
     'Multiencoder: set min keyint = max keyint',
     'AVX512 is not supported',
-    'hevc-aq enabled, disabling other aq-modes'
+    'hevc-aq enabled, disabling other aq-modes',
+    'halving the quality when psy-rd is enabled for 444 input. Setting cbQpOffset = 6 and crQpOffset = 6'	
 )
 
 
