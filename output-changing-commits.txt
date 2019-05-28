@@ -130,3 +130,4 @@ d4f52d3270b6 lower psy-rd default to 0.3
 6adc0fe54354 merge ultrafast deblock to default
 cefc6f03cce1 enable deblock at ultrafast (on stable)
 272781048200 added temporal layers, changed SPS slightly
+4583000db964 [max-merge, b-intra, limit-ref, early-skip] Changed the params max-merge to 3, b-intra enabled, limit-ref and early-skip enabled for improved performance for high res
