@@ -49,7 +49,7 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
         cmd = cmd.replace(' ;', '')
         final_command += cmd
         k=k+1     
-        bitrates, vbvmaxrates, vbvbufsizes, crf, crfmax, crfmin = [], [], [], [], [], []
+        bitrates, vbvmaxrates, vbvbufsizes, crf, crfmax, crfmin, qp, qpmin, qpmax, qpstep = [], [], [], [], [], [], [], [], [], []
         tchash = []
         if '--vbv-bufsize ' in cmd_stream:
             list = cmd_stream.split('--vbv-bufsize ')[1].split(' ')[0]
@@ -75,7 +75,7 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
                 crfmin.append(l)
             cmd = cmd.replace('--crf-min ', '')
             cmd = cmd.replace(list, '')
-        if '--crf' not in cmd_stream and '--bitrate' not in cmd_stream:
+        if '--crf' not in cmd_stream and '--bitrate' not in cmd_stream and '--qp' not in cmd_stream:
             testhash = utils.testcasehash(seq, command)
             tchash.append(testhash)
             utils.testhashlist.append(testhash)
@@ -126,6 +126,33 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
                 if vbvmaxrates and vbvmaxrates[i]:
                     command +=  ' --vbv-maxrate '
                     command +=  str(vbvmaxrates[i])
+                command = command.replace(';','')
+                command = command.replace('[ ','')
+                command = command.replace(' ]','')
+                command += ' '
+                commandslist.append(command)
+                testhash = utils.testcasehash(seq, command)
+                tchash.append(testhash)
+                utils.testhashlist.append(testhash)
+        if '--qp' in cmd_stream:
+            list = cmd_stream.split('--qp ')[1].split(' ')[0]
+            for l in list.split (','):
+                qp.append(l)
+            cmd = cmd.replace('--qp ', '')
+            cmd = cmd.replace(list, '')
+            for i in range(len(qp)):
+                command = cmd
+                command = ' --qp '
+                command += str(qp[i])
+                if qpmax and qpmax[i]:
+                    command +=  ' --qpmax '
+                    command +=  str(qpmax[i])
+                if qpmin and qpmin[i]:
+                    command +=  ' --qpmin '
+                    command +=  str(qpmin[i])
+                if qpstep and qpstep[i]:
+                    command +=  ' --qpstep '
+                    command +=  str(qpstep[i])
                 command = command.replace(';','')
                 command = command.replace('[ ','')
                 command = command.replace(' ]','')
@@ -199,7 +226,7 @@ def arrangecli(seq, command, always, extras, ffmpegpath, build):
     f = cmd_string.split('[')[0]
     cmd = cmd_string.split('[')[1].split(']')[0]
     commandslist = []
-    bitrates, vbvmaxrates, vbvbufsizes, crf, crfmax, crfmin = [], [], [], [], [], []
+    bitrates, vbvmaxrates, vbvbufsizes, crf, crfmax, crfmin, qp, qpmax, qpmin, qpstep = [], [], [], [], [], [], [], [], [], []
     if '--bitrate ' in cmd:
         list = cmd.split('--bitrate ')[1].split(' ')[0]
         for l in list.split (','):
@@ -236,6 +263,30 @@ def arrangecli(seq, command, always, extras, ffmpegpath, build):
             crfmin.append(l)
         cmd_string = cmd_string.replace('--crf-min', '')
         cmd_string = cmd_string.replace(list, '')
+    if '--qp' in cmd:
+        list = cmd.split('--qp ')[1].split(' ')[0]
+        for l in list.split (','):
+            qp.append(l)
+        cmd_string = cmd_string.replace('--qp', '')
+        cmd_string = cmd_string.replace(list, '')
+    if '--qpmax' in cmd:
+        list =  cmd.split('--qpmax ')[1].split(' ')[0]
+        for l in list.split (','):
+            qpmax.append(l)
+        cmd_string = cmd_string.replace('--qpmax', '')
+        cmd_string = cmd_string.replace(list, '')
+    if '--qpmin' in cmd:
+        list =  cmd.split('--qpmin ')[1].split(' ')[0]
+        for l in list.split (','):
+            qpmin.append(l)
+        cmd_string = cmd_string.replace('--qpmin', '')
+        cmd_string = cmd_string.replace(list, '')
+    if '--qpstep' in cmd:
+        list =  cmd.split('--qpstep ')[1].split(' ')[0]
+        for l in list.split (','):
+            qpstep.append(l)
+        cmd_string = cmd_string.replace('--qpstep', '')
+        cmd_string = cmd_string.replace(list, '')
     if '--bitrate' in cmd:
         for i in range(len(bitrates)):
             command = '--bitrate '
@@ -269,6 +320,26 @@ def arrangecli(seq, command, always, extras, ffmpegpath, build):
             if vbvmaxrates and vbvmaxrates[i]:
                 command +=  ' --vbv-maxrate '
                 command +=  str(vbvmaxrates[i])
+            command += ' '
+            command += cmd_string.strip(';').strip('[').strip(']')
+            command += ' '
+            command += always
+            commandslist.append(command)
+            testhash = utils.testcasehash(seq, command)
+            utils.testhashlist.append(testhash)
+    if '--qp' in cmd:
+        for i in range(len(qp)):
+            command = '--qp '
+            command += str(qp[i])
+            if qpmax and qpmax[i]:
+                command +=  ' --qpmax '
+                command +=  str(qpmax[i])
+            if qpmin and qpmin[i]:
+                command +=  ' --qpmin '
+                command +=  str(qpmin[i])
+            if qpstep and qpstep[i]:
+                command +=  ' --qpstep '
+                command +=  str(qpstep[i])
             command += ' '
             command += cmd_string.strip(';').strip('[').strip(']')
             command += ' '
