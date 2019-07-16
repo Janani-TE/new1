@@ -80,6 +80,8 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
             tchash.append(testhash)
             utils.testhashlist.append(testhash)
         if '--bitrate' in cmd_stream:
+            rootcmd = cmd_stream.split(" [ ")[0];
+            rootcmd += cmd_stream.split(" ]")[1].split(' } ')[0];
             list = cmd_stream.split('--bitrate ')[1].split(' ')[0]
             for l in list.split (','):
                 bitrates.append(l)
@@ -101,10 +103,14 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
                 command = command.replace(' ]','')
                 command += ' '
                 commandslist.append(command)
-                testhash = utils.testcasehash(seq, command)
+                curcmd = rootcmd
+                curcmd += command
+                testhash = utils.testcasehash(seq, curcmd)
                 tchash.append(testhash)
                 utils.testhashlist.append(testhash)
         if '--crf' in cmd_stream:
+            rootcmd = cmd_stream.split(" [ ")[0];
+            rootcmd += cmd_stream.split(" ]")[1].split(' } ')[0];
             list = cmd_stream.split('--crf ')[1].split(' ')[0]
             for l in list.split (','):
                 crf.append(l)
@@ -131,10 +137,14 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
                 command = command.replace(' ]','')
                 command += ' '
                 commandslist.append(command)
-                testhash = utils.testcasehash(seq, command)
+                curcmd = rootcmd
+                curcmd += command
+                testhash = utils.testcasehash(seq, curcmd)
                 tchash.append(testhash)
                 utils.testhashlist.append(testhash)
         if '--qp' in cmd_stream:
+            rootcmd = cmd_stream.split(" [ ")[0];
+            rootcmd += cmd_stream.split(" ]")[1].split(' } ')[0];
             list = cmd_stream.split('--qp ')[1].split(' ')[0]
             for l in list.split (','):
                 qp.append(l)
@@ -158,7 +168,9 @@ def arrangecli_MC(seq, command, always, extras, ffmpegpath, build):
                 command = command.replace(' ]','')
                 command += ' '
                 commandslist.append(command)
-                testhash = utils.testcasehash(seq, command)
+                curcmd = rootcmd
+                curcmd += command
+                testhash = utils.testcasehash(seq, curcmd)
                 tchash.append(testhash)
                 utils.testhashlist.append(testhash)
         final_command += ' -o '
