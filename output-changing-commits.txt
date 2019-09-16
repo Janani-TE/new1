@@ -18,6 +18,7 @@
 # 2) not required [sao], [weightp], [cutree] etc.., because these are
 # already set in presets so golden outputs will store for that preset.
 
+28397fa666cc [pass 2,pass 3] 2-pass: Fix incorrect weighted prediction when cu-tree is enabled
 3bdf06e3c628 [ultrafast,superfast,veryfast,faster,fast,slow,slower,veryslow,placebo] Decoupled the non-"medium" presets from the effect of new default parameters committed under 4583000db964
 4583000db964 Changed the params max-merge to 3, b-intra enabled, limit-ref and early-skip enabled for improved performance for high res
 1ebe4cc6419f [refine-inter] analysis: For inter-refine level 1, evaluate smaller CU sizes only when the current
